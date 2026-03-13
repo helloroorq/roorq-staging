@@ -124,10 +124,9 @@ export default function Navbar() {
   type CartItem = { quantity?: number };
 
   const handleUserMenuClick = async () => {
-    if (loading) return;
-
+    // Always attempt to resolve auth state when the icon is tapped/clicked
     if (user) {
-      setIsUserMenuOpen(!isUserMenuOpen);
+      setIsUserMenuOpen((prev) => !prev);
       return;
     }
 
