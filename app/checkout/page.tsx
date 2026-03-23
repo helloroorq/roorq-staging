@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -11,6 +10,7 @@ import toast from 'react-hot-toast';
 import { formatINR } from '@/lib/utils/currency';
 import { logger } from '@/lib/logger';
 import { getOrCreateCsrfToken } from '@/lib/auth/csrf-client';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 interface CartItem {
   productId: string;
@@ -55,13 +55,18 @@ type CheckoutErrorResponse = {
   details?: string[];
 };
 
+type ProductRow = {
+  id: string;
+  name: string;
+  price: number;
+};
+
 const isCheckoutSuccess = (
   data: CheckoutSuccessResponse | CheckoutErrorResponse
 ): data is CheckoutSuccessResponse => "orderId" in data;
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -75,28 +80,21 @@ export default function CheckoutPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
   const loadData = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) throw authError;
-      
-      if (!authUser) {
-        router.push('/auth?redirect=/checkout');
-        return;
-      }
-
-      setUser(authUser);
-
-      // Load user profile
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', authUser.id)
+        .eq('id', user.id)
         .single();
 
       if (profileError) {
@@ -105,11 +103,12 @@ export default function CheckoutPage() {
       }
 
       if (profile) {
-        setUserProfile(profile);
+        const typedProfile = profile as UserProfile;
+        setUserProfile(typedProfile);
         setFormData({
-          hostel: profile.hostel || '',
-          roomNumber: profile.room_number || '',
-          phone: profile.phone || '',
+          hostel: typedProfile.hostel || '',
+          roomNumber: typedProfile.room_number || '',
+          phone: typedProfile.phone || '',
         });
       }
 
@@ -135,7 +134,7 @@ export default function CheckoutPage() {
       }
 
       const productMap = new Map(
-        (productRows ?? []).map((product) => [product.id, product])
+        ((productRows ?? []) as ProductRow[]).map((product) => [product.id, product])
       );
 
       const merged = cartData
@@ -152,11 +151,20 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, supabase]);
+  }, [supabase, user]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      router.replace('/auth?redirect=/checkout');
+      return;
+    }
+
+    void loadData();
+  }, [authLoading, loadData, router, user]);
 
   useEffect(() => {
     setCsrfToken(getOrCreateCsrfToken());
@@ -233,7 +241,15 @@ export default function CheckoutPage() {
   // PHASE 1: COD Only - UPI disabled
   const showUPI = false; // userProfile?.first_cod_done === true;
 
-  if (loading) {
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin" />

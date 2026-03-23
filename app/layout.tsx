@@ -6,6 +6,7 @@ import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/Toaster";
 import Analytics from "@/components/Analytics";
 import CookieConsent from "@/components/CookieConsent";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import { assertValidEnv } from "@/lib/env.validation";
 import { getSiteUrl } from "@/lib/seo/site";
 import { organizationSchema, websiteSchema } from "@/lib/seo/schema";
@@ -64,13 +65,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Toaster />
-        <Preloader />
-        <FirstVisitModal />
-        <StructuredData data={[organizationSchema, websiteSchema]} />
-        <Analytics />
-        {children}
-        <CookieConsent />
+        <AuthProvider>
+          <Toaster />
+          <Preloader />
+          <FirstVisitModal />
+          <StructuredData data={[organizationSchema, websiteSchema]} />
+          <Analytics />
+          {children}
+          <CookieConsent />
+        </AuthProvider>
       </body>
     </html>
   );

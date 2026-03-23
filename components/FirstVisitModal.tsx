@@ -21,12 +21,16 @@ export default function FirstVisitModal() {
   const brandOptions = ['Carhartt', 'Ralph Lauren', 'Nike', 'Patagonia', 'Harley Davidson'];
 
   useEffect(() => {
-    if (pathname.startsWith('/admin') || pathname.startsWith('/seller')) return;
+    if (pathname !== '/' || pathname.startsWith('/admin') || pathname.startsWith('/seller')) return;
     if (typeof window === 'undefined') return;
 
     const accepted = window.localStorage.getItem(STORAGE_KEY);
     if (!accepted) {
-      setIsOpen(true);
+      const timer = window.setTimeout(() => {
+        setIsOpen(true);
+      }, 3500);
+
+      return () => window.clearTimeout(timer);
     }
   }, [pathname]);
 
@@ -79,7 +83,7 @@ export default function FirstVisitModal() {
     }
   };
 
-  if (!isOpen || pathname.startsWith('/admin') || pathname.startsWith('/seller')) return null;
+  if (!isOpen || pathname !== '/' || pathname.startsWith('/admin') || pathname.startsWith('/seller')) return null;
 
   return (
     <div

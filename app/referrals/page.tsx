@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { useRouter } from 'next/navigation';
 import { Copy, Check, Gift, Share2, ExternalLink, Clock, AlertCircle } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 type UserProfile = {
   id: string;
@@ -31,7 +32,6 @@ type ReferralReward = {
 };
 
 export default function ReferralsPage() {
-  const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [rewards, setRewards] = useState<ReferralReward[]>([]);
@@ -39,21 +39,18 @@ export default function ReferralsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
   const loadData = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        window.location.href = '/auth?redirect=/referrals';
-        return;
-      }
-
-      setUser(user);
-
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')
@@ -87,11 +84,20 @@ export default function ReferralsPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, user]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      router.replace('/auth?redirect=/referrals');
+      return;
+    }
+
+    void loadData();
+  }, [authLoading, loadData, router, user]);
 
   const copyReferralLink = () => {
     const code = userProfile?.referral_code ?? '';
@@ -109,7 +115,15 @@ export default function ReferralsPage() {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${userProfile.referral_code}`
     : '';
 
-  if (loading) {
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>

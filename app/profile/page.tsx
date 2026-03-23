@@ -1,118 +1,216 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import Link from 'next/link';
-import { buildMetadata } from '@/lib/seo/metadata';
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { CheckCircle2, CreditCard, MessageSquare, ReceiptText, Store, Users } from 'lucide-react'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+import { buildMetadata } from '@/lib/seo/metadata'
+import { createClient } from '@/lib/supabase/server'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export const metadata = buildMetadata({
   title: 'Profile',
-  description: 'Manage your Roorq profile and preferences.',
+  description: 'Manage your Roorq account, orders, referrals, and marketplace settings.',
   path: '/profile',
   noIndex: true,
-});
+})
 
 export default async function ProfilePage() {
-  const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   if (!user) {
-    redirect('/auth');
+    redirect('/auth?mode=signin&redirect=/profile')
   }
 
   const { data: profile } = await supabase
     .from('users')
-    .select('*')
+    .select(
+      'email, full_name, phone, hostel, room_number, first_cod_done, referral_code, user_type, vendor_status, store_name'
+    )
     .eq('id', user.id)
-    .single();
+    .maybeSingle()
+
+  const quickLinks = [
+    {
+      href: '/messages',
+      title: 'Messages',
+      description: 'Keep seller conversations and questions organized.',
+      icon: MessageSquare,
+    },
+    {
+      href: '/orders',
+      title: 'Orders',
+      description: 'Track deliveries, statuses, and past purchases.',
+      icon: ReceiptText,
+    },
+    {
+      href: '/referrals',
+      title: 'Referrals',
+      description: 'Share your code and unlock marketplace rewards.',
+      icon: Users,
+    },
+    {
+      href: profile?.user_type === 'vendor' ? '/seller' : '/sell',
+      title: profile?.user_type === 'vendor' ? 'Seller hub' : 'Start selling',
+      description:
+        profile?.user_type === 'vendor'
+          ? 'Manage listings, storefront details, and orders.'
+          : 'Create your store and start listing products.',
+      icon: Store,
+    },
+  ]
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-[#f7f4ee] text-slate-950">
       <Navbar />
-      
-      <div className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-4xl font-bold mb-8">My Profile</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Profile Info */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="bg-white border rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">Personal Information</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block font-semibold mb-2">Email</label>
-                  <p className="text-gray-700">{profile?.email || user.email}</p>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-2">Full Name</label>
-                  <p className="text-gray-700">{profile?.full_name || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-2">Phone</label>
-                  <p className="text-gray-700">{profile?.phone || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-2">Hostel</label>
-                  <p className="text-gray-700">{profile?.hostel || 'Not set'}</p>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-2">Room Number</label>
-                  <p className="text-gray-700">{profile?.room_number || 'Not set'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">Payment Status</h2>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span>COD Available</span>
-                  <span className="font-semibold text-green-600">✓ Always Available</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>UPI Payment</span>
-                  {profile?.first_cod_done ? (
-                    <span className="font-semibold text-green-600">✓ Unlocked</span>
-                  ) : (
-                    <span className="font-semibold text-gray-500">
-                      Locked - Complete 1 COD order to unlock
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Links */}
-          <div className="space-y-4">
-            <Link
-              href="/orders"
-              className="block bg-white border rounded-lg p-6 hover:bg-gray-50 transition"
-            >
-              <h3 className="font-semibold mb-2">My Orders</h3>
-              <p className="text-sm text-gray-600">View order history</p>
-            </Link>
-            <Link
-              href="/referrals"
-              className="block bg-white border rounded-lg p-6 hover:bg-gray-50 transition"
-            >
-              <h3 className="font-semibold mb-2">Referrals</h3>
-              <p className="text-sm text-gray-600">Invite friends, get rewards</p>
-            </Link>
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Referral Code</h3>
-              <p className="text-sm font-mono bg-gray-50 p-2 rounded">
-                {profile?.referral_code || 'Loading...'}
+      <main className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <section className="overflow-hidden rounded-[34px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)]">
+            <div className="border-b border-stone-100 px-6 py-6 sm:px-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Account</p>
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] text-slate-950">My profile</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                Keep your delivery details, payment access, and marketplace tools ready so checkout and messaging stay frictionless.
               </p>
             </div>
-          </div>
+
+            <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-[28px] border border-stone-200 bg-stone-50 p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+                  Personal details
+                </p>
+                <dl className="mt-5 space-y-4">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Email</dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-950">{profile?.email || user.email}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Full name</dt>
+                    <dd className="mt-1 text-sm text-slate-700">{profile?.full_name || 'Not set'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Phone</dt>
+                    <dd className="mt-1 text-sm text-slate-700">{profile?.phone || 'Not set'}</dd>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Hostel</dt>
+                      <dd className="mt-1 text-sm text-slate-700">{profile?.hostel || 'Not set'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Room number</dt>
+                      <dd className="mt-1 text-sm text-slate-700">{profile?.room_number || 'Not set'}</dd>
+                    </div>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-[28px] border border-stone-200 bg-white p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Payment access</p>
+                      <p className="text-xs text-stone-500">Checkout stays dynamic based on account status.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-3 text-sm">
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-stone-50 px-4 py-3">
+                      <span className="text-slate-700">Cash on delivery</span>
+                      <span className="inline-flex items-center gap-2 font-semibold text-emerald-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Available
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-stone-50 px-4 py-3">
+                      <span className="text-slate-700">UPI payments</span>
+                      {profile?.first_cod_done ? (
+                        <span className="inline-flex items-center gap-2 font-semibold text-emerald-600">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Unlocked
+                        </span>
+                      ) : (
+                        <span className="text-right text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                          Unlock after your first COD order
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-stone-200 bg-slate-950 p-5 text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/60">Referral code</p>
+                  <p className="mt-3 rounded-2xl bg-white/10 px-4 py-4 text-sm font-semibold tracking-[0.18em]">
+                    {profile?.referral_code || 'Generating...'}
+                  </p>
+                  <p className="mt-3 text-sm text-white/70">
+                    Share this in campus groups or DMs to drive your next referral reward.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <aside className="space-y-6">
+            <section className="overflow-hidden rounded-[34px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)]">
+              <div className="border-b border-stone-100 px-6 py-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Quick actions</p>
+                <h2 className="mt-3 text-2xl font-black tracking-[-0.05em] text-slate-950">Move faster</h2>
+              </div>
+              <div className="space-y-3 p-4">
+                {quickLinks.map((link) => {
+                  const Icon = link.icon
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="flex items-start gap-4 rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{link.title}</p>
+                        <p className="mt-1 text-sm leading-6 text-stone-500">{link.description}</p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+
+            {profile?.user_type === 'vendor' && (
+              <section className="overflow-hidden rounded-[34px] border border-stone-200 bg-white shadow-[0_24px_50px_rgba(15,23,42,0.05)]">
+                <div className="px-6 py-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Store status</p>
+                  <h2 className="mt-3 text-2xl font-black tracking-[-0.05em] text-slate-950">
+                    {profile.store_name || 'Vendor account'}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-stone-600">
+                    Vendor status: <span className="font-semibold capitalize text-slate-950">{profile.vendor_status || 'pending'}</span>
+                  </p>
+                  <Link
+                    href="/seller"
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open seller hub
+                    <Store className="h-4 w-4" />
+                  </Link>
+                </div>
+              </section>
+            )}
+          </aside>
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
-  );
+  )
 }

@@ -69,6 +69,7 @@ export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams?.get("redirect");
+  const requestedMode = searchParams?.get("mode");
   const redirectPath = redirectParam?.startsWith("/profile") ? "/" : (redirectParam ?? "/");
   const referralParam = searchParams?.get("ref") ?? "";
   const errorParam = searchParams?.get("error");
@@ -118,6 +119,14 @@ export default function AuthPage() {
     const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
+
+  useEffect(() => {
+    if (requestedMode === "signin" || requestedMode === "signup") {
+      setMode(requestedMode);
+      setStep("input");
+      setOtp("");
+    }
+  }, [requestedMode]);
 
   const formatPhoneNumber = (value: string) => {
     const phoneNumber = value.replace(/\D/g, "");

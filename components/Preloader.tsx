@@ -26,7 +26,7 @@ export default function Preloader() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    if (pathname.startsWith('/admin') || pathname.startsWith('/seller')) {
+    if (pathname !== '/' || pathname.startsWith('/admin') || pathname.startsWith('/seller')) {
       setLoading(false);
       setIsVisible(false);
       return;
@@ -66,7 +66,7 @@ export default function Preloader() {
     return () => clearInterval(interval);
   }, [pathname]);
 
-  if (!loading) return null;
+  if (!loading || pathname !== '/') return null;
 
   return (
     <div 

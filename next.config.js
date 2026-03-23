@@ -1,6 +1,8 @@
 const { withSentryConfig } = require('@sentry/nextjs')
 
 const isProd = process.env.NODE_ENV === 'production'
+const isDev = process.env.NODE_ENV === 'development'
+const enableSentry = !isDev
 const scriptSrc = ["'self'", "'unsafe-inline'"]
 if (!isProd) {
   scriptSrc.push("'unsafe-eval'")
@@ -24,6 +26,7 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  distDir: isDev ? '.next-dev' : '.next',
   images: {
     // Removed 'localhost' for production - add back if needed for local development
     remotePatterns: [
@@ -53,6 +56,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false, // Keep type checking
   },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = false
+    }
+    return config
+  },
   async headers() {
     const securityHeaders = [
       { key: 'Content-Security-Policy', value: csp },
@@ -78,13 +87,18 @@ const nextConfig = {
   },
 };
 
-module.exports = withSentryConfig(
-  nextConfig,
-  {
-    silent: true,
-  },
-  {
-    hideSourceMaps: true,
-    disableLogger: true,
-  }
-);
+module.exports = enableSentry
+  ? withSentryConfig(
+      nextConfig,
+      {
+        silent: true,
+        sourcemaps: {
+          deleteSourcemapsAfterUpload: true,
+        },
+      },
+      {
+        hideSourceMaps: true,
+        disableLogger: true,
+      }
+    )
+  : nextConfig;

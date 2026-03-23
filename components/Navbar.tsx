@@ -1,629 +1,396 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useMemo, useState, useRef, useEffect } from 'react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { ShoppingCart, Menu, X, User as UserIcon, Search, ChevronDown, LogOut } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { logger } from '@/lib/logger';
+import Link from 'next/link'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  ArrowRight,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Package,
+  Search,
+  ShoppingBag,
+  Store,
+  User as UserIcon,
+  X,
+} from 'lucide-react'
+import { logger } from '@/lib/logger'
+import { useAuth } from '@/components/providers/AuthProvider'
+import DesktopMegaMenu from '@/components/navbar/DesktopMegaMenu'
+import MobileMenuSection from '@/components/navbar/MobileMenuSection'
+import { CATEGORY_MENUS, type CategoryMenu } from '@/components/navbar/menu-data'
 
-const NAVIGATION_ITEMS = [
-  {
-    label: 'SALE',
-    href: '/shop?category=sale',
-    isRed: true,
-    dropdown: null
-  },
-  {
-    label: "MEN'S VINTAGE",
-    href: '/shop?gender=men',
-    dropdown: [
-      {
-        title: 'Shop By Category',
-        links: [
-          { label: 'All Men\'s Vintage', href: '/shop?gender=men' },
-          { label: 'Vintage Jackets', href: '/shop?category=jacket&gender=men' },
-          { label: 'Vintage Sweatshirts', href: '/shop?category=sweater&gender=men' },
-          { label: 'Vintage T-Shirts', href: '/shop?category=t-shirt&gender=men' },
-          { label: 'Vintage Jeans', href: '/shop?category=jeans&gender=men' },
-          { label: 'Vintage Trousers', href: '/shop?category=trousers&gender=men' },
-        ]
-      },
-      {
-        title: 'Shop By Brand',
-        links: [
-          { label: 'Vintage Nike', href: '/shop?search=nike&gender=men' },
-          { label: 'Vintage Carhartt', href: '/shop?search=carhartt&gender=men' },
-          { label: 'Vintage Ralph Lauren', href: '/shop?search=ralph&gender=men' },
-          { label: 'Vintage Adidas', href: '/shop?search=adidas&gender=men' },
-          { label: 'Vintage Dickies', href: '/shop?search=dickies&gender=men' },
-        ]
-      },
-      {
-        title: 'Collections',
-        links: [
-          { label: 'New Arrivals', href: '/shop?sort=newest&gender=men' },
-          { label: 'Bestsellers', href: '/shop?sort=bestsellers&gender=men' },
-          { label: 'Grails (Premium)', href: '/shop?tag=premium&gender=men' },
-        ]
-      }
-    ]
-  },
-  {
-    label: "WOMEN'S VINTAGE",
-    href: '/shop?gender=women',
-    dropdown: [
-      {
-        title: 'Shop By Category',
-        links: [
-          { label: 'All Women\'s Vintage', href: '/shop?gender=women' },
-          { label: 'Vintage Jackets', href: '/shop?category=jacket&gender=women' },
-          { label: 'Vintage Sweatshirts', href: '/shop?category=sweater&gender=women' },
-          { label: 'Vintage T-Shirts', href: '/shop?category=t-shirt&gender=women' },
-          { label: 'Vintage Jeans', href: '/shop?category=jeans&gender=women' },
-          { label: 'Vintage Skirts', href: '/shop?category=skirt&gender=women' },
-        ]
-      },
-      {
-        title: 'Shop By Brand',
-        links: [
-          { label: 'Vintage Nike', href: '/shop?search=nike&gender=women' },
-          { label: 'Vintage Carhartt', href: '/shop?search=carhartt&gender=women' },
-          { label: 'Vintage Harley Davidson', href: '/shop?search=harley&gender=women' },
-          { label: 'Vintage Disney', href: '/shop?search=disney&gender=women' },
-        ]
-      },
-      {
-        title: 'Collections',
-        links: [
-          { label: 'New Arrivals', href: '/shop?sort=newest&gender=women' },
-          { label: 'Y2K Edit', href: '/shop?tag=y2k&gender=women' },
-          { label: 'Oversized Fits', href: '/shop?tag=oversized&gender=women' },
-        ]
-      }
-    ]
-  },
-  {
-    label: "KIDS VINTAGE",
-    href: '/shop?gender=kids',
-    dropdown: null
-  },
-  {
-    label: "SPORTSWEAR",
-    href: '/shop?category=sportswear',
-    dropdown: null
-  },
-  {
-    label: "F*CK FAST FASHION",
-    href: '/about',
-    dropdown: null
-  },
-  {
-    label: "THE EDIT",
-    href: '/editorial',
-    dropdown: null
-  }
-];
+type CartItem = { quantity?: number }
+type CategoryMenuId = CategoryMenu['id']
 
-export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [cartCount, setCartCount] = useState(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  
-  const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
-  type CartItem = { quantity?: number };
+const focusRingClass =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white'
 
-  const handleUserMenuClick = async () => {
-    // Toggle menu immediately for responsive feel
-    setIsUserMenuOpen((prev) => !prev);
+const buildAuthHref = (mode: 'signin' | 'signup', pathname: string) => {
+  const params = new URLSearchParams()
+  params.set('mode', mode)
+  params.set('redirect', pathname === '/auth' ? '/' : pathname)
+  return `/auth?${params.toString()}`
+}
 
-    // If we already have a user, no need to fetch
-    if (user) return;
+function NavbarFallback() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-black/10 bg-white/95 backdrop-blur">
+      <div className="mx-auto hidden max-w-[1880px] lg:block">
+        <div className="flex h-[74px] items-center gap-8 px-6 xl:px-8">
+          <div className="h-8 w-28 rounded bg-stone-100" />
+          <div className="h-12 flex-1 rounded-full border border-stone-200 bg-stone-50" />
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded border border-stone-200 bg-stone-50" />
+            <div className="h-10 w-32 rounded bg-slate-950" />
+            <div className="h-10 w-28 rounded border border-stone-200 bg-stone-50" />
+          </div>
+        </div>
+        <div className="h-14 border-t border-black/10" />
+      </div>
+      <div className="px-4 py-3 lg:hidden">
+        <div className="flex h-10 items-center justify-between">
+          <div className="h-10 w-10 rounded border border-stone-200 bg-stone-50" />
+          <div className="h-8 w-24 rounded bg-stone-100" />
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 rounded border border-stone-200 bg-stone-50" />
+            <div className="h-10 w-10 rounded border border-stone-200 bg-stone-50" />
+          </div>
+        </div>
+        <div className="mt-3 h-11 rounded-full border border-stone-200 bg-stone-50" />
+      </div>
+    </header>
+  )
+}
 
-    // Try to hydrate user from Supabase without redirecting
-    try {
-      const { data: { user: freshUser } } = await supabase.auth.getUser();
-      if (freshUser) {
-        setUser(freshUser);
-        setIsUserMenuOpen(true);
-      }
-    } catch (err) {
-      logger.debug('Auth recheck error', err instanceof Error ? err : undefined);
-    }
-  };
+type UserMenuProps = {
+  userEmail: string
+  isAdmin: boolean
+  isSeller: boolean
+  authLoading: boolean
+  isOpen: boolean
+  onLogout: () => void
+}
 
-  // Update cart count from localStorage
+function DesktopUserMenu({ userEmail, isAdmin, isSeller, authLoading, isOpen, onLogout }: UserMenuProps) {
+  if (!isOpen) return null
+  return (
+    <div
+      role="menu"
+      className="absolute right-0 top-[calc(100%+14px)] z-[70] w-72 overflow-hidden rounded-[26px] border border-stone-200 bg-white shadow-[0_30px_60px_rgba(15,23,42,0.14)]"
+    >
+      {authLoading ? (
+        <div className="px-5 py-4 text-sm text-stone-500">Checking session...</div>
+      ) : (
+        <>
+          <div className="border-b border-stone-100 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Signed in</p>
+            <p className="mt-2 truncate text-sm font-semibold text-slate-950">{userEmail}</p>
+          </div>
+          <div className="p-2">
+            {isAdmin && (
+              <Link href="/admin" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 ${focusRingClass}`}>
+                <LayoutDashboard className="h-4 w-4" />
+                Admin dashboard
+              </Link>
+            )}
+            {isSeller && (
+              <Link href="/seller" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-stone-50 ${focusRingClass}`}>
+                <Store className="h-4 w-4" />
+                Seller dashboard
+              </Link>
+            )}
+            <Link href="/profile" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-stone-50 ${focusRingClass}`}>
+              <UserIcon className="h-4 w-4" />
+              My profile
+            </Link>
+            <Link href="/messages" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-stone-50 ${focusRingClass}`}>
+              <MessageSquare className="h-4 w-4" />
+              Messages
+            </Link>
+            <Link href="/orders" className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-stone-50 ${focusRingClass}`}>
+              <Package className="h-4 w-4" />
+              My orders
+            </Link>
+          </div>
+          <div className="border-t border-stone-100 p-2">
+            <button type="button" onClick={onLogout} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 ${focusRingClass}`}>
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function NavbarContent() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { user, userRole, userType, loading: authLoading, signOut } = useAuth()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [cartCount, setCartCount] = useState(0)
+  const [activeMegaMenuId, setActiveMegaMenuId] = useState<CategoryMenuId | null>(null)
+  const [lastMegaMenuId, setLastMegaMenuId] = useState<CategoryMenuId | null>(null)
+  const [expandedMobileMenuId, setExpandedMobileMenuId] = useState<CategoryMenuId | null>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const desktopMenuRef = useRef<HTMLDivElement>(null)
+  const menuCloseTimeoutRef = useRef<number | null>(null)
+  const triggerRefs = useRef<Partial<Record<CategoryMenuId, HTMLButtonElement | null>>>({})
+
+  const currentPath = pathname || '/'
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin'
+  const isSeller = userType === 'vendor' || isAdmin
+  const sellHref = isSeller ? '/seller' : '/sell'
+  const loginHref = buildAuthHref('signin', currentPath)
+  const signupHref = buildAuthHref('signup', currentPath)
+  const topIconButtonClass = `inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-900 transition hover:bg-stone-100 ${focusRingClass}`
+
+  useEffect(() => {
+    if (activeMegaMenuId) setLastMegaMenuId(activeMegaMenuId)
+  }, [activeMegaMenuId])
+  useEffect(() => setSearchQuery(searchParams?.get('search') ?? ''), [searchParams])
   useEffect(() => {
     const updateCartCount = () => {
       try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[];
-        const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-        setCartCount(totalItems);
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]') as CartItem[]
+        setCartCount(cart.reduce((sum, item) => sum + (item.quantity || 1), 0))
       } catch (error) {
-        logger.error('Error reading cart', error instanceof Error ? error : undefined);
-        setCartCount(0);
+        logger.error('Error reading cart', error instanceof Error ? error : undefined)
+        setCartCount(0)
       }
-    };
-
-    // Initial load
-    updateCartCount();
-
-    // Listen for storage changes (when cart is updated in other tabs/components)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'cart') {
-        updateCartCount();
-      }
-    };
-
-    // Listen for custom cart update events (when cart is updated in same tab)
-    const handleCartUpdate = () => {
-      updateCartCount();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('cartUpdated', handleCartUpdate);
-
+    }
+    const handleStorageChange = (event: StorageEvent) => event.key === 'cart' && updateCartCount()
+    updateCartCount()
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('cartUpdated', updateCartCount)
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('cartUpdated', handleCartUpdate);
-    };
-  }, []);
-
-  // Check auth state on mount with proper error handling
-  useEffect(() => {
-    let isMounted = true;
-    
-    const checkUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        // Only update state if component is still mounted
-        if (!isMounted) return;
-        
-        // Handle errors gracefully - don't log out user on temporary network issues
-        if (error) {
-          // Only clear user state if it's a real auth error, not a network issue
-          if (error.message.includes('Invalid Refresh Token') || 
-              error.message.includes('JWT')) {
-            setUser(null);
-            setUserRole(null);
-          }
-          // For network errors, keep existing state to prevent false logouts
-        } else {
-          setUser(user);
-          
-          if (user) {
-            try {
-              // Use RPC function to avoid RLS recursion
-              const { data: role, error: roleError } = await supabase.rpc('get_user_role', { user_id: user.id });
-              if (isMounted) {
-                if (roleError) {
-                  logger.debug('Role fetch error (non-critical)', roleError instanceof Error ? roleError : undefined);
-                  // Don't clear user, just don't set role
-                } else if (role) {
-                  setUserRole(role);
-                }
-              }
-            } catch (err) {
-              // Silently handle role fetch errors - don't break user experience
-              logger.debug('Role check error', err instanceof Error ? err : undefined);
-            }
-          } else {
-            setUserRole(null);
-          }
-        }
-      } catch (err) {
-        // Catch any unexpected errors
-        logger.debug('Auth check error', err instanceof Error ? err : undefined);
-        // Don't clear user state on unexpected errors - prevent false logouts
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-    
-    checkUser();
-
-    // Listen for auth changes with error handling
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      
-      try {
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          try {
-            // Use RPC function to avoid RLS recursion
-            const { data: role, error: roleError } = await supabase.rpc('get_user_role', { user_id: session.user.id });
-            if (isMounted) {
-              if (roleError) {
-                logger.debug('Role fetch error in auth change', roleError instanceof Error ? roleError : undefined);
-              } else if (role) {
-                setUserRole(role);
-              }
-            }
-          } catch (err) {
-            logger.debug('Role check error in auth change', err instanceof Error ? err : undefined);
-          }
-        } else {
-          setUserRole(null);
-        }
-
-      } catch (err) {
-        logger.debug('Auth state change error', err instanceof Error ? err : undefined);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase, router]); // Include supabase and router in dependencies
-
-  // Close user menu when clicking outside
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('cartUpdated', updateCartCount)
+    }
+  }, [])
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleMouseEnter = (label: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setActiveDropdown(label);
-  };
-
-  const handleMouseLeave = () => {
-    timeoutRef.current = setTimeout(() => {
-      setActiveDropdown(null);
-    }, 100);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setIsUserMenuOpen(false);
-      setUser(null);
-      setUserRole(null);
-      // Use replace instead of push to prevent back button issues
-      router.replace('/');
-      // Remove router.refresh() - it's unnecessary and can cause issues
-    } catch (error: unknown) {
-      logger.error('Logout error', error instanceof Error ? error : undefined);
-      // Still navigate even if signOut fails
-      router.replace('/');
+      const target = event.target as Node
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) setIsUserMenuOpen(false)
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(target)) setActiveMegaMenuId(null)
     }
-  };
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+  useEffect(() => {
+    setIsMenuOpen(false)
+    setIsUserMenuOpen(false)
+    setExpandedMobileMenuId(null)
+    setActiveMegaMenuId(null)
+  }, [currentPath, searchParams])
+  useEffect(() => {
+    return () => {
+      if (menuCloseTimeoutRef.current) {
+        window.clearTimeout(menuCloseTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const activeNavLabel = useMemo(() => {
+    const gender = searchParams?.get('gender')
+    const category = searchParams?.get('category')
+    return CATEGORY_MENUS.find((item) => item.match.pathname === currentPath || item.match.gender === gender || item.match.category === category)?.label ?? null
+  }, [currentPath, searchParams])
+
+  const displayedMegaMenuItem = useMemo(() => {
+    const itemId = activeMegaMenuId ?? lastMegaMenuId
+    return CATEGORY_MENUS.find((item) => item.id === itemId) ?? null
+  }, [activeMegaMenuId, lastMegaMenuId])
+
+  const clearMenuCloseTimeout = () => {
+    if (menuCloseTimeoutRef.current) {
+      window.clearTimeout(menuCloseTimeoutRef.current)
+      menuCloseTimeoutRef.current = null
+    }
+  }
+  const openMegaMenu = (itemId: CategoryMenuId) => {
+    clearMenuCloseTimeout()
+    setIsUserMenuOpen(false)
+    setActiveMegaMenuId(itemId)
+  }
+  const scheduleMegaMenuClose = () => {
+    clearMenuCloseTimeout()
+    menuCloseTimeoutRef.current = window.setTimeout(() => setActiveMegaMenuId(null), 140)
+  }
+  const closeMegaMenu = (focusTriggerId?: CategoryMenuId) => {
+    clearMenuCloseTimeout()
+    setActiveMegaMenuId(null)
+    if (focusTriggerId) window.requestAnimationFrame(() => triggerRefs.current[focusTriggerId]?.focus())
+  }
+  const moveTriggerFocus = (currentId: CategoryMenuId, direction: 'next' | 'prev') => {
+    const currentIndex = CATEGORY_MENUS.findIndex((item) => item.id === currentId)
+    const nextIndex = (currentIndex + (direction === 'next' ? 1 : -1) + CATEGORY_MENUS.length) % CATEGORY_MENUS.length
+    const nextItem = CATEGORY_MENUS[nextIndex]
+    triggerRefs.current[nextItem.id]?.focus()
+    openMegaMenu(nextItem.id)
+  }
+  const handleTriggerKeyDown = (itemId: CategoryMenuId, event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); openMegaMenu(itemId); return
+    }
+    if (event.key === 'ArrowRight') { event.preventDefault(); moveTriggerFocus(itemId, 'next'); return }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); moveTriggerFocus(itemId, 'prev'); return }
+    if (event.key === 'Escape') { event.preventDefault(); closeMegaMenu(itemId) }
+  }
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const params = new URLSearchParams()
+    const normalizedQuery = searchQuery.trim()
+    if (normalizedQuery) params.set('search', normalizedQuery)
+    router.push(`/shop${params.toString() ? `?${params.toString()}` : ''}`)
+    setIsMenuOpen(false)
+  }
+  const handleLogout = async () => {
+    try { await signOut() } catch (error) { logger.error('Logout error', error instanceof Error ? error : undefined) }
+    setIsUserMenuOpen(false)
+    router.replace('/')
+  }
 
   return (
-    <div className="w-full font-sans sticky top-0 z-50">
-      {/* Top Scrolling Banner */}
-
-      {/* Main Header */}
-      <div className="border-b border-gray-200 bg-white relative">
-        <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Left: Search (Desktop) / Menu (Mobile) */}
-            <div className="flex items-center flex-1">
-              <button 
-                className="p-2 hover:text-gray-600 hidden md:block"
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              <button 
-                className="p-2 md:hidden"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Center: Logo */}
-            <div className="flex-1 flex justify-center">
-              <Link href="/" className="flex items-center gap-2 hover:text-red-600 transition-colors">
-                <Image
-                  src="/roorq-final7.png"
-                  alt="Roorq"
-                  width={36}
-                  height={36}
-                  className="h-9 w-9 object-contain"
-                  priority
-                />
-                <span className="text-3xl md:text-4xl font-extrabold tracking-tighter">roorq.</span>
-              </Link>
-            </div>
-
-            {/* Right: Utilities */}
-            <div className="flex items-center justify-end flex-1 gap-4">
-              <div className="hidden md:flex items-center text-sm font-medium cursor-pointer hover:text-gray-600">
-                <span className="mr-1">India | INR ₹</span>
-                <ChevronDown className="w-4 h-4" />
-              </div>
-              
-              {/* User Menu */}
-              <div className="relative" ref={userMenuRef}>
-                {user ? (
-                  <button 
-                    className="p-2 hover:text-gray-600"
-                    onClick={handleUserMenuClick}
-                    aria-haspopup="true"
-                    aria-expanded={isUserMenuOpen}
-                  >
-                    <UserIcon className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <Link
-                    href="/auth"
-                    className="p-2 hover:text-gray-600"
-                    aria-label="Sign in"
-                  >
-                    <UserIcon className="w-5 h-5" />
-                  </Link>
-                )}
-                
-                {/* User Dropdown Menu */}
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
-                    {user ? (
-                      <>
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-xs text-gray-500">Signed in as</p>
-                          <p className="text-sm font-medium truncate">{user.email}</p>
-                        </div>
-                        <div className="py-1">
-                          {(userRole === 'admin' || userRole === 'super_admin') && (
-                            <Link 
-                              href="/admin" 
-                              className="block px-4 py-2 text-sm font-bold text-red-600 hover:bg-gray-100 uppercase"
-                              onClick={() => setIsUserMenuOpen(false)}
-                            >
-                              Admin Dashboard
-                            </Link>
-                          )}
-                          <Link 
-                            href="/profile"  
-                            className="block px-4 py-2 text-sm hover:bg-gray-100"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
-                            My Profile
-                          </Link>
-                          <Link 
-                            href="/orders" 
-                            className="block px-4 py-2 text-sm hover:bg-gray-100"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
-                            My Orders
-                          </Link>
-                          <Link 
-                            href="/referrals" 
-                            className="block px-4 py-2 text-sm hover:bg-gray-100"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
-                            Referrals
-                          </Link>
-                        </div>
-                        <div className="border-t border-gray-100">
-                          <button
-                            onClick={handleLogout}
-                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            Logout
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="py-1">
-                        <Link 
-                          href="/auth" 
-                          className="block px-4 py-2 text-sm font-bold hover:bg-gray-100 uppercase"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          Sign in / Sign up
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              <Link href="/cart" className="p-2 hover:text-gray-600 relative">
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-black text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center min-w-[20px]">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </Link>
-            </div>
+    <header className="sticky top-0 z-50 border-b border-black/10 bg-white/95 backdrop-blur-md">
+      <div className="mx-auto max-w-[1880px]">
+        <div className="flex h-16 items-center gap-3 px-4 lg:hidden">
+          <button type="button" onClick={() => { setIsMenuOpen(true); setIsUserMenuOpen(false); closeMegaMenu() }} className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white hover:bg-stone-50 ${focusRingClass}`} aria-label="Open navigation menu"><Menu className="h-5 w-5" /></button>
+          <Link href="/" className={focusRingClass}><span className="block text-[1.9rem] font-black tracking-[-0.08em] text-[#e11d2e]">roorq</span></Link>
+          <div className="ml-auto flex items-center gap-1">
+            <Link href="/cart" className={topIconButtonClass} aria-label="Open cart"><div className="relative"><ShoppingBag className="h-5 w-5" />{cartCount > 0 && <span className="absolute -right-2 -top-2 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-950 px-1 text-[10px] font-semibold text-white">{cartCount > 99 ? '99+' : cartCount}</span>}</div></Link>
+            <Link href={user ? '/profile' : loginHref} className={topIconButtonClass} aria-label={user ? 'Open profile' : 'Log in'}><UserIcon className="h-5 w-5" /></Link>
           </div>
         </div>
 
-        {/* Desktop Navigation Bar with Mega Menu */}
-        <div className="hidden md:block bg-black text-white text-sm font-bold uppercase tracking-wide relative">
-          <div className="max-w-[1800px] mx-auto px-4">
-            <ul className="flex justify-center space-x-8">
-              {NAVIGATION_ITEMS.map((item) => (
-                <li 
-                  key={item.label} 
-                  className="py-3"
-                  onMouseEnter={() => item.dropdown && handleMouseEnter(item.label)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <Link 
-                    href={item.href} 
-                    className={`hover:text-gray-300 py-3 border-b-2 border-transparent hover:border-white transition-all ${item.isRed ? 'text-red-500 hover:text-red-400' : ''}`}
+        <div className="border-t border-black/10 px-4 py-3 lg:hidden">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-3 rounded-full border border-slate-900 bg-white px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)]" role="search">
+            <Search className="h-4 w-4 text-stone-500" />
+            <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder='Search for "white linen trousers"' className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-stone-400" aria-label="Search listings" />
+          </form>
+        </div>
+
+        <div className="hidden lg:block">
+          <div className="flex h-[74px] items-center gap-8 px-6 xl:px-8">
+            <Link href="/" className={focusRingClass}><span className="block text-[2.15rem] font-black tracking-[-0.08em] text-[#e11d2e]">roorq</span></Link>
+            <form onSubmit={handleSearchSubmit} className="flex flex-1" role="search">
+              <div className="mx-auto flex w-full max-w-[840px] items-center gap-3 rounded-full border border-slate-900 bg-white px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+                <Search className="h-5 w-5 text-stone-500" />
+                <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder='Search for "white linen trousers"' className="w-full bg-transparent text-[1.05rem] text-slate-900 outline-none placeholder:text-stone-400" aria-label="Search listings" />
+                <button type="submit" className="sr-only">Search</button>
+              </div>
+            </form>
+            <div className="ml-auto flex shrink-0 items-center gap-1 xl:gap-2">
+              {user && <Link href="/messages" className={topIconButtonClass} aria-label="Open messages"><MessageSquare className="h-5 w-5" /></Link>}
+              <Link href="/cart" className={topIconButtonClass} aria-label="Open cart"><div className="relative"><ShoppingBag className="h-5 w-5" />{cartCount > 0 && <span className="absolute -right-2 -top-2 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-950 px-1 text-[10px] font-semibold text-white">{cartCount > 99 ? '99+' : cartCount}</span>}</div></Link>
+              <Link href={sellHref} className={`inline-flex h-10 items-center rounded-sm bg-slate-950 px-5 text-[1rem] font-semibold text-white hover:bg-slate-800 ${focusRingClass}`}>{isSeller ? 'Seller hub' : 'Sell now'}</Link>
+              {!user ? (
+                <>
+                  <Link href={signupHref} className={`inline-flex h-10 items-center rounded-sm border border-slate-900 px-5 text-[1rem] font-semibold text-slate-900 hover:bg-stone-50 ${focusRingClass}`}>Sign up</Link>
+                  <Link href={loginHref} className={`px-3 text-[1rem] font-semibold text-slate-900 hover:text-slate-600 ${focusRingClass}`}>Log in</Link>
+                </>
+              ) : (
+                <div className="relative" ref={userMenuRef}>
+                  <button type="button" onClick={() => { setIsUserMenuOpen((value) => !value); closeMegaMenu() }} className={`inline-flex h-10 items-center gap-2 rounded-sm px-2.5 text-sm font-semibold text-slate-900 hover:bg-stone-50 ${focusRingClass}`} aria-label="Open account menu" aria-expanded={isUserMenuOpen} aria-haspopup="menu">
+                    <UserIcon className="h-4.5 w-4.5" />
+                    <ChevronDown className={`h-4 w-4 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <DesktopUserMenu userEmail={user.email ?? 'Signed in'} isAdmin={isAdmin} isSeller={isSeller} authLoading={authLoading} isOpen={isUserMenuOpen} onLogout={() => void handleLogout()} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div ref={desktopMenuRef} className="relative border-t border-black/10" onMouseEnter={clearMenuCloseTimeout} onMouseLeave={scheduleMegaMenuClose} onFocusCapture={clearMenuCloseTimeout} onBlurCapture={(event) => { const nextTarget = event.relatedTarget as Node | null; if (!nextTarget || !event.currentTarget.contains(nextTarget)) scheduleMegaMenuClose() }}>
+            <nav className="flex h-14 items-center gap-10 px-6 xl:px-8" aria-label="Marketplace categories">
+              {CATEGORY_MENUS.map((item) => {
+                const isOpen = activeMegaMenuId === item.id
+                const isActive = isOpen || activeNavLabel === item.label
+                return (
+                  <button
+                    key={item.id}
+                    ref={(element) => { triggerRefs.current[item.id] = element }}
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-haspopup="menu"
+                    aria-controls={`mega-menu-panel-${item.id}`}
+                    onMouseEnter={() => openMegaMenu(item.id)}
+                    onFocus={() => openMegaMenu(item.id)}
+                    onClick={() => { setActiveMegaMenuId((current) => current === item.id ? null : item.id); setIsUserMenuOpen(false) }}
+                    onKeyDown={(event) => handleTriggerKeyDown(item.id, event)}
+                    className={`group relative inline-flex h-full items-center text-[1.03rem] font-semibold tracking-[-0.01em] ${item.accent === 'sale' ? (isActive ? 'text-[#e11d48]' : 'text-[#e11d48] hover:text-[#be123c]') : (isActive ? 'text-slate-950' : 'text-slate-900 hover:text-slate-600')} ${focusRingClass}`}
                   >
                     {item.label}
-                  </Link>
-                  
-                  {/* Mega Menu Dropdown */}
-                  {item.dropdown && activeDropdown === item.label && (
-                    <div className="absolute left-0 top-full w-full bg-white text-black shadow-xl border-t border-gray-100 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="max-w-[1800px] mx-auto px-8 py-8">
-                        <div className="grid grid-cols-4 gap-8">
-                          {item.dropdown.map((column, idx) => (
-                            <div key={idx}>
-                              <h3 className="font-black text-xs uppercase tracking-widest mb-4 border-b border-black pb-2">{column.title}</h3>
-                              <ul className="space-y-3">
-                                {column.links.map((link, linkIdx) => (
-                                  <li key={linkIdx}>
-                                    <Link 
-                                      href={link.href}
-                                      className="text-xs font-bold text-gray-500 hover:text-black uppercase tracking-wide block transition-colors"
-                                      onClick={() => setActiveDropdown(null)}
-                                    >
-                                      {link.label}
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                          {/* Add a promo image column if needed */}
-                          <div className="col-span-1">
-                             <div className="bg-gray-100 h-full w-full flex items-center justify-center p-4">
-                               <div className="text-center">
-                                 <p className="font-black uppercase tracking-widest mb-2">New Drop</p>
-                                 <Link href="/drops" className="text-xs underline">Shop Now</Link>
-                               </div>
-                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    <span className={`absolute inset-x-0 bottom-[-1px] h-0.5 origin-left transition ${isActive ? (item.accent === 'sale' ? 'scale-x-100 bg-[#e11d48]' : 'scale-x-100 bg-slate-950') : 'scale-x-0 bg-slate-950 group-hover:scale-x-100'}`} />
+                  </button>
+                )
+              })}
+            </nav>
+            {displayedMegaMenuItem && <DesktopMegaMenu menu={displayedMegaMenuItem} isOpen={Boolean(activeMegaMenuId)} onClose={() => closeMegaMenu()} onEscape={() => closeMegaMenu(displayedMegaMenuItem.id)} />}
           </div>
         </div>
       </div>
 
-      {/* Search Overlay */}
-      {isSearchOpen && (
-        <div className="absolute top-full left-0 w-full bg-white border-b border-gray-200 p-4 animate-in slide-in-from-top-2 z-40 shadow-xl">
-          <div className="max-w-3xl mx-auto relative">
-            <input
-              type="text"
-              placeholder="Search for products, brands, or styles..."
-              className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-none text-lg focus:ring-2 focus:ring-black font-bold uppercase tracking-wide placeholder:font-normal placeholder:capitalize"
-              autoFocus
-            />
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
-            <button 
-              onClick={() => setIsSearchOpen(false)}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            aria-label="Close menu overlay"
-            className="absolute inset-0 bg-black/35 backdrop-blur-[1px]"
-            onClick={() => setIsMenuOpen(false)}
-          />
-
-          <div className="relative h-full w-[86%] max-w-sm bg-white overflow-y-auto animate-in slide-in-from-left shadow-[8px_0_24px_rgba(0,0,0,0.25)]">
-            <div className="sticky top-0 p-4 border-b border-gray-200 flex justify-between items-center bg-black text-white z-10">
-              <span className="font-black text-xl tracking-tighter">MENU</span>
-              <button onClick={() => setIsMenuOpen(false)}>
-                <X className="w-6 h-6" />
-              </button>
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button type="button" className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]" aria-label="Close navigation menu" onClick={() => setIsMenuOpen(false)} />
+          <div className="relative ml-auto flex h-full w-[88%] max-w-sm flex-col overflow-y-auto bg-white shadow-[-18px_0_40px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center justify-between border-b border-black/10 px-5 py-5">
+              <div><p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Marketplace menu</p><p className="mt-1 text-[2rem] font-black tracking-[-0.08em] text-[#e11d2e]">roorq</p></div>
+              <button type="button" onClick={() => setIsMenuOpen(false)} className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white ${focusRingClass}`} aria-label="Close navigation menu"><X className="h-5 w-5" /></button>
             </div>
-            <div className="p-4">
-              <ul className="space-y-6">
-                {NAVIGATION_ITEMS.map((item) => (
-                  <li key={item.label}>
-                    <div className="flex justify-between items-center">
-                      <Link
-                        href={item.href}
-                        className={`text-xl font-black uppercase tracking-tighter ${item.isRed ? 'text-red-600' : 'text-black'}`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                    </div>
-                    {/* Flattened mobile sub-menu for key items */}
-                    {item.dropdown && (
-                      <ul className="mt-4 pl-4 space-y-3 border-l-2 border-gray-100">
-                        {item.dropdown[0].links.slice(0, 4).map((link, idx) => (
-                          <li key={idx}>
-                            <Link
-                              href={link.href}
-                              className="text-sm font-bold text-gray-500 uppercase tracking-wide block"
-                              onClick={() => setIsMenuOpen(false)}
-                            >
-                              {link.label}
-                            </Link>
-                          </li>
-                        ))}
-                        <li>
-                          <Link href={item.href} className="text-sm font-black underline uppercase" onClick={() => setIsMenuOpen(false)}>View All</Link>
-                        </li>
-                      </ul>
-                    )}
-                  </li>
+            <div className="border-b border-black/10 px-5 py-5">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-3 rounded-full border border-slate-900 bg-white px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+                <Search className="h-4 w-4 text-stone-500" />
+                <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder='Search for "white linen trousers"' className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-stone-400" aria-label="Search listings" />
+              </form>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <Link href={sellHref} className={`inline-flex items-center justify-center rounded-sm bg-slate-950 px-4 py-3 text-sm font-semibold text-white ${focusRingClass}`}>{isSeller ? 'Seller hub' : 'Sell now'}</Link>
+                <Link href={user ? '/profile' : signupHref} className={`inline-flex items-center justify-center rounded-sm border border-slate-900 px-4 py-3 text-sm font-semibold text-slate-900 ${focusRingClass}`}>{user ? 'My profile' : 'Sign up'}</Link>
+              </div>
+            </div>
+            <div className="flex-1 px-5 py-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Browse</p>
+              <div className="mt-4 space-y-3">
+                {CATEGORY_MENUS.map((item) => (
+                  <MobileMenuSection key={item.id} menu={item} isExpanded={expandedMobileMenuId === item.id} onToggle={() => setExpandedMobileMenuId((current) => current === item.id ? null : item.id)} onNavigate={() => setIsMenuOpen(false)} />
                 ))}
-              </ul>
-              <div className="mt-8 border-t border-gray-100 pt-8">
-                {user ? (
-                  <>
-                    {(userRole === 'admin' || userRole === 'super_admin') && (
-                      <Link href="/admin" className="flex items-center gap-4 text-lg font-bold uppercase mb-4 text-red-600" onClick={() => setIsMenuOpen(false)}>
-                        <UserIcon className="w-6 h-6" /> Admin Dashboard
-                      </Link>
-                    )}
-                    <Link href="/profile" className="flex items-center gap-4 text-lg font-bold uppercase mb-4" onClick={() => setIsMenuOpen(false)}>
-                      <UserIcon className="w-6 h-6" /> My Account
-                    </Link>
-                    <Link href="/orders" className="flex items-center gap-4 text-lg font-bold uppercase mb-4" onClick={() => setIsMenuOpen(false)}>
-                      My Orders
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-4 text-lg font-bold uppercase text-red-600"
-                    >
-                      <LogOut className="w-6 h-6" /> Logout
-                    </button>
-                  </>
-                ) : (
-                  <Link href="/auth" className="flex items-center gap-4 text-lg font-bold uppercase mb-4" onClick={() => setIsMenuOpen(false)}>
-                    <UserIcon className="w-6 h-6" /> Sign In
-                  </Link>
-                )}
-                <Link href="/faq" className="flex items-center gap-4 text-lg font-bold uppercase mt-4" onClick={() => setIsMenuOpen(false)}>
-                  Help & FAQ
-                </Link>
+              </div>
+              <div className="mt-8">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Account</p>
+                <div className="mt-4 space-y-2">
+                  {user ? (
+                    <>
+                      {isAdmin && <Link href="/admin" className={`flex items-center justify-between rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-4 text-sm font-semibold text-rose-600 ${focusRingClass}`}>Admin dashboard<ArrowRight className="h-4 w-4" /></Link>}
+                      {isSeller && <Link href="/seller" className={`flex items-center justify-between rounded-[22px] border border-stone-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 ${focusRingClass}`}>Seller dashboard<ArrowRight className="h-4 w-4 text-stone-500" /></Link>}
+                      <Link href="/messages" className={`flex items-center justify-between rounded-[22px] border border-stone-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 ${focusRingClass}`}>Messages<ArrowRight className="h-4 w-4 text-stone-500" /></Link>
+                      <Link href="/orders" className={`flex items-center justify-between rounded-[22px] border border-stone-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 ${focusRingClass}`}>Orders<ArrowRight className="h-4 w-4 text-stone-500" /></Link>
+                      <button type="button" onClick={() => { setIsMenuOpen(false); void handleLogout() }} className={`flex w-full items-center justify-between rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-4 text-left text-sm font-semibold text-rose-600 ${focusRingClass}`}>Log out<LogOut className="h-4 w-4" /></button>
+                    </>
+                  ) : (
+                    <>
+                      <Link href={loginHref} className={`flex items-center justify-between rounded-[22px] border border-stone-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 ${focusRingClass}`}>Log in<ArrowRight className="h-4 w-4 text-stone-500" /></Link>
+                      <Link href={signupHref} className={`flex items-center justify-between rounded-[22px] border border-stone-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 ${focusRingClass}`}>Sign up<ArrowRight className="h-4 w-4 text-stone-500" /></Link>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
+    </header>
+  )
+}
+
+export default function Navbar() {
+  return <Suspense fallback={<NavbarFallback />}><NavbarContent /></Suspense>
 }

@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { getOrCreateCsrfToken } from '@/lib/auth/csrf-client'
 
+type BankingSettingsRow = {
+  bank_account_number: string | null
+  bank_ifsc: string | null
+  bank_account_name: string | null
+  upi_id: string | null
+}
+
 export default function SellerBankingPage() {
   const supabase = useMemo(() => createClient(), [])
   const [csrf, setCsrf] = useState('')
@@ -30,11 +37,12 @@ export default function SellerBankingPage() {
         .eq('id', auth.user.id)
         .single()
       if (data) {
+        const typedData = data as BankingSettingsRow
         setForm({
-          bankAccountNumber: data.bank_account_number ?? '',
-          bankIfsc: data.bank_ifsc ?? '',
-          bankAccountName: data.bank_account_name ?? '',
-          upiId: data.upi_id ?? '',
+          bankAccountNumber: typedData.bank_account_number ?? '',
+          bankIfsc: typedData.bank_ifsc ?? '',
+          bankAccountName: typedData.bank_account_name ?? '',
+          upiId: typedData.upi_id ?? '',
         })
       }
     }

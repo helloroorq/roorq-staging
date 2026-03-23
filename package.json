@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "node scripts/clean-next-build.mjs",
+    "prebuild": "node scripts/clean-next-build.mjs",
     "dev": "next dev",
     "dev:staging": "dotenv -e .env.staging -- next dev",
     "build": "next build",

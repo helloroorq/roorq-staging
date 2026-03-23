@@ -2,9 +2,11 @@ import { rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 
-const runWindowsFallback = () =>
+const TARGETS = ['.next', '.next-dev'];
+
+const runWindowsFallback = (target) =>
   new Promise((resolve, reject) => {
-    const child = spawn('cmd', ['/c', 'rd', '/s', '/q', '.next'], {
+    const child = spawn('cmd', ['/c', 'rd', '/s', '/q', target], {
       stdio: 'ignore',
       shell: false,
     });
@@ -20,14 +22,16 @@ const runWindowsFallback = () =>
   });
 
 const clean = async () => {
-  try {
-    await rm('.next', { recursive: true, force: true });
-  } catch (error) {
-    if (process.platform === 'win32') {
-      await runWindowsFallback();
-      return;
+  for (const target of TARGETS) {
+    try {
+      await rm(target, { recursive: true, force: true });
+    } catch (error) {
+      if (process.platform === 'win32') {
+        await runWindowsFallback(target);
+        continue;
+      }
+      throw error;
     }
-    throw error;
   }
 };
 

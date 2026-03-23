@@ -55,7 +55,7 @@ export default function RidersClient() {
         name: name.trim(),
         phone: phone.trim(),
         is_active: true,
-      })
+      } as never)
 
       if (error) {
         throw error
@@ -77,7 +77,7 @@ export default function RidersClient() {
       try {
         const { error } = await supabase
           .from('riders')
-          .update({ is_active: !isActive })
+          .update({ is_active: !isActive } as never)
           .eq('id', id)
 
         if (error) {

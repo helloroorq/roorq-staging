@@ -1,6 +1,6 @@
 import { publicEnv } from '@/lib/env.public'
 
-const DEFAULT_SITE_URL = 'http://localhost:3000'
+const DEFAULT_SITE_URL = 'https://www.roorq.com'
 
 const normalizeUrl = (value: string) => value.replace(/\/+$/, '')
 

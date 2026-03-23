@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -11,6 +10,7 @@ import { Trash2, Plus, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 interface CartItem {
   productId: string;
@@ -25,17 +25,14 @@ interface CartItem {
   };
 }
 
+type ProductRow = NonNullable<CartItem['product']>;
+
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
-
-  const checkAuth = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-  }, [supabase]);
 
   const loadCart = useCallback(async () => {
     try {
@@ -59,7 +56,9 @@ export default function CartPage() {
         throw productsError;
       }
 
-      const productMap = new Map((productRows ?? []).map((product) => [product.id, product]));
+      const productMap = new Map(
+        ((productRows ?? []) as ProductRow[]).map((product) => [product.id, product])
+      );
       let hasChanges = false;
 
       const validProducts = cartData.reduce<CartItem[]>((acc, item) => {
@@ -108,9 +107,8 @@ export default function CartPage() {
   }, [supabase]);
 
   useEffect(() => {
-    loadCart();
-    checkAuth();
-  }, [loadCart, checkAuth]);
+    void loadCart();
+  }, [loadCart]);
 
   const updateQuantity = (productId: string, delta: number) => {
     const updatedCart = cart.map((item) => {
@@ -253,7 +251,11 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {!user ? (
+                {authLoading ? (
+                  <div className="block w-full bg-gray-200 text-gray-500 text-center py-3 rounded font-semibold mb-2">
+                    Checking account...
+                  </div>
+                ) : !user ? (
                   <Link
                     href="/auth?redirect=/cart"
                     className="block w-full bg-black text-white text-center py-3 rounded font-semibold hover:bg-gray-800 transition mb-2"

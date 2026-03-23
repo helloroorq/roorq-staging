@@ -5,6 +5,17 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { getOrCreateCsrfToken } from '@/lib/auth/csrf-client'
 
+type SellerProfileRow = {
+  store_name: string | null
+  store_description: string | null
+  store_logo_url: string | null
+  store_banner_url: string | null
+  business_name: string | null
+  business_category: string | null
+  business_email: string | null
+  business_phone: string | null
+}
+
 export default function SellerProfileSettingsPage() {
   const supabase = useMemo(() => createClient(), [])
   const [loading, setLoading] = useState(false)
@@ -35,15 +46,16 @@ export default function SellerProfileSettingsPage() {
         .single()
 
       if (data) {
+        const typedData = data as SellerProfileRow
         setForm({
-          storeName: data.store_name ?? '',
-          storeDescription: data.store_description ?? '',
-          storeLogoUrl: data.store_logo_url ?? '',
-          storeBannerUrl: data.store_banner_url ?? '',
-          businessName: data.business_name ?? '',
-          businessCategory: data.business_category ?? '',
-          businessEmail: data.business_email ?? '',
-          businessPhone: data.business_phone ?? '',
+          storeName: typedData.store_name ?? '',
+          storeDescription: typedData.store_description ?? '',
+          storeLogoUrl: typedData.store_logo_url ?? '',
+          storeBannerUrl: typedData.store_banner_url ?? '',
+          businessName: typedData.business_name ?? '',
+          businessCategory: typedData.business_category ?? '',
+          businessEmail: typedData.business_email ?? '',
+          businessPhone: typedData.business_phone ?? '',
         })
       }
     }

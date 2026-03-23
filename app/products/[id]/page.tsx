@@ -1,10 +1,10 @@
-import { cache } from 'react';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import AddToCartButton from '@/components/AddToCartButton';
+import StartConversationButton from '@/components/messages/StartConversationButton';
 import StructuredData from '@/components/StructuredData';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { breadcrumbSchema, productSchema } from '@/lib/seo/schema';
@@ -12,18 +12,40 @@ import { formatINR } from '@/lib/utils/currency';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Check, ShieldCheck, Truck, RefreshCcw, Ruler } from 'lucide-react';
+import { logger } from '@/lib/logger';
+import { fetchApprovedStoreById } from '@/lib/marketplace/public';
 
-const getProduct = cache(async (id: string) => {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const getProduct = async (id: string) => {
   const supabase = await createClient();
-  const { data: product } = await supabase
+  const { data: product, error } = await supabase
     .from('products')
     .select('*')
     .eq('id', id)
     .eq('is_active', true)
-    .single();
+    .eq('approval_status', 'approved')
+    .maybeSingle();
+
+  if (error) {
+    logger.error('Product detail query failed', {
+      productId: id,
+      message: error.message,
+      code: error.code,
+    });
+  }
 
   return product;
-});
+};
+
+const getStore = async (vendorId: string | null | undefined) => {
+  if (!vendorId) {
+    return null;
+  }
+
+  return fetchApprovedStoreById(vendorId);
+};
 
 export async function generateMetadata({
   params,
@@ -66,6 +88,8 @@ export default async function ProductDetailPage({
     : 0;
 
   const availableStock = product.stock_quantity - product.reserved_quantity;
+  const store = await getStore(product.vendor_id);
+  const storeName = store?.store_name || store?.business_name;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-white">
@@ -185,12 +209,40 @@ export default async function ProductDetailPage({
                 </div>
               </div>
 
+              {store && storeName && (
+                <div className="mb-8 border border-gray-100 bg-white p-6">
+                  <p className="mb-2 text-xs font-black uppercase tracking-widest text-gray-500">
+                    Sold by
+                  </p>
+                  <Link
+                    href={`/stores/${store.id}`}
+                    className="inline-flex items-center gap-3 text-lg font-black uppercase tracking-wide hover:text-gray-600"
+                  >
+                    {storeName}
+                  </Link>
+                  {store.store_description && (
+                    <p className="mt-3 text-xs font-mono uppercase tracking-wide text-gray-500">
+                      {store.store_description}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Add to Cart */}
               <div className="mb-8">
-                <AddToCartButton 
-                  productId={product.id} 
-                  disabled={availableStock === 0}
-                />
+                <div className="space-y-3">
+                  <AddToCartButton 
+                    productId={product.id} 
+                    disabled={availableStock === 0}
+                  />
+                  {product.vendor_id && (
+                    <StartConversationButton
+                      sellerId={product.vendor_id}
+                      productId={product.id}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-gray-300 hover:bg-gray-50"
+                    />
+                  )}
+                </div>
                 {availableStock === 0 && (
                    <p className="mt-2 text-red-600 text-xs font-bold uppercase tracking-widest text-center">
                      Sold Out

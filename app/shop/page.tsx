@@ -1,69 +1,71 @@
-import { createClient } from '@/lib/supabase/server';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import ProductCard from '@/components/ProductCard';
-import StructuredData from '@/components/StructuredData';
-import { buildMetadata } from '@/lib/seo/metadata';
-import { breadcrumbSchema, collectionSchema } from '@/lib/seo/schema';
-import { Filter, ChevronDown } from 'lucide-react';
-import { logger } from '@/lib/logger';
+import Link from 'next/link'
+import { ChevronDown, Filter } from 'lucide-react'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+import ProductCard from '@/components/ProductCard'
+import StructuredData from '@/components/StructuredData'
+import { createClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
+import { buildMetadata } from '@/lib/seo/metadata'
+import { breadcrumbSchema, collectionSchema } from '@/lib/seo/schema'
 
 export const metadata = buildMetadata({
   title: 'Shop',
   description: 'Shop the latest weekly drops and vintage pieces curated for IIT Roorkee.',
   path: '/shop',
   keywords: ['shop', 'weekly drops', 'vintage', 'IIT Roorkee'],
-});
+})
+
+type ShopSearchParams = {
+  category?: string
+  search?: string
+  sort?: string
+  gender?: string
+  tag?: string
+}
 
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: { category?: string; search?: string; sort?: string; gender?: string; tag?: string };
+  searchParams: ShopSearchParams
 }) {
-  const supabase = await createClient();
-  
-  let query = supabase
-    .from('products')
-    .select('*')
-    .eq('is_active', true);
+  const supabase = await createClient()
 
-  // Apply filters
+  let query = supabase.from('products').select('*').eq('is_active', true).eq('approval_status', 'approved')
+
   if (searchParams.category) {
-    query = query.eq('category', searchParams.category);
+    query = query.eq('category', searchParams.category)
   }
 
   if (searchParams.gender) {
-    // Now safe to filter by gender since column exists
-    query = query.eq('gender', searchParams.gender);
+    query = query.eq('gender', searchParams.gender)
   }
 
-  const searchTerm = searchParams.search ?? searchParams.tag;
+  const searchTerm = searchParams.search ?? searchParams.tag
   if (searchTerm) {
-    query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+    query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`)
   }
 
-  // Sorting
   switch (searchParams.sort) {
     case 'price_asc':
-      query = query.order('price', { ascending: true });
-      break;
+      query = query.order('price', { ascending: true })
+      break
     case 'price_desc':
-      query = query.order('price', { ascending: false });
-      break;
+      query = query.order('price', { ascending: false })
+      break
     case 'bestsellers':
-      query = query.order('created_at', { ascending: false });
-      break;
+      query = query.order('created_at', { ascending: false })
+      break
     case 'newest':
     default:
-      query = query.order('created_at', { ascending: false });
-      break;
+      query = query.order('created_at', { ascending: false })
+      break
   }
 
-  const { data: products, error } = await query;
+  const { data: products, error } = await query
 
   if (error) {
-    logger.error('Error fetching products', error instanceof Error ? error : undefined);
-    // Graceful fallback: Show empty state instead of crashing
+    logger.error('Error fetching products', error instanceof Error ? error : undefined)
   }
 
   const categoryLabels: Record<string, string> = {
@@ -77,20 +79,20 @@ export default async function ShopPage({
     skirt: 'Skirts',
     sportswear: 'Sportswear',
     sale: 'Sale',
-  };
+  }
 
   const genderLabels: Record<string, string> = {
     men: "Men's",
     women: "Women's",
     kids: "Kids'",
-  };
+  }
 
   const genderLabel = searchParams.gender
     ? (genderLabels[searchParams.gender] ?? `${searchParams.gender}'s`)
-    : '';
+    : ''
   const categoryLabel = searchParams.category
     ? (categoryLabels[searchParams.category] ?? searchParams.category)
-    : 'All Vintage';
+    : 'All Vintage'
 
   const categories = [
     { name: 'All', value: '' },
@@ -103,7 +105,20 @@ export default async function ShopPage({
     { name: 'Shoes', value: 'shoes' },
     { name: 'Accessories', value: 'accessories' },
     { name: 'Sportswear', value: 'sportswear' },
-  ];
+  ]
+
+  const buildShopHref = (overrides: Partial<ShopSearchParams>) => {
+    const params = new URLSearchParams()
+    const merged = { ...searchParams, ...overrides }
+
+    Object.entries(merged).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        params.set(key, value)
+      }
+    })
+
+    return `/shop${params.toString() ? `?${params.toString()}` : ''}`
+  }
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -121,104 +136,100 @@ export default async function ShopPage({
         ]}
       />
       <Navbar />
-      
-      {/* Header / Banner */}
-      <div className="bg-gray-100 py-12 px-4 text-center border-b border-gray-200">
-        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-4">
-          {genderLabel ? `${genderLabel} ` : ''}{categoryLabel}
+
+      <div className="border-b border-gray-200 bg-gray-100 px-4 py-12 text-center">
+        <h1 className="mb-4 text-4xl font-black uppercase tracking-tighter md:text-6xl">
+          {genderLabel ? `${genderLabel} ` : ''}
+          {categoryLabel}
         </h1>
-        <p className="text-gray-500 font-mono uppercase tracking-widest text-xs md:text-sm max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-xs font-mono uppercase tracking-widest text-gray-500 md:text-sm">
           {products?.length || 0} Items Found • 100% Authentic • Cleaned & Ready to Wear
         </p>
       </div>
 
-      <div className="flex-1 max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        
-        {/* Toolbar */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b border-gray-100 pb-4 sticky top-20 bg-white z-30 py-4">
-          
-          {/* Categories (Desktop) */}
-          <div className="hidden md:flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <a
-                key={cat.value}
-                href={`/shop?${new URLSearchParams({ ...searchParams, category: cat.value }).toString()}`}
+      <div className="mx-auto flex-1 w-full max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="sticky top-20 z-30 mb-8 flex flex-col items-center justify-between gap-4 border-b border-gray-100 bg-white py-4 md:flex-row">
+          <div className="hidden flex-wrap gap-2 md:flex">
+            {categories.map((category) => (
+              <Link
+                key={category.value}
+                href={buildShopHref({ category: category.value })}
                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wide border ${
-                  searchParams.category === cat.value || (!searchParams.category && cat.value === '')
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-black border-gray-200 hover:border-black'
+                  searchParams.category === category.value || (!searchParams.category && category.value === '')
+                    ? 'border-black bg-black text-white'
+                    : 'border-gray-200 bg-white text-black hover:border-black'
                 } transition-colors`}
               >
-                {cat.name}
-              </a>
+                {category.name}
+              </Link>
             ))}
           </div>
 
-          {/* Sort Dropdown */}
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="relative group w-full md:w-48">
-              <button className="w-full flex justify-between items-center px-4 py-2 border border-black bg-white text-xs font-bold uppercase tracking-wide">
+          <div className="flex w-full items-center gap-4 md:w-auto">
+            <div className="group relative w-full md:w-48">
+              <button className="flex w-full items-center justify-between border border-black bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide">
                 <span>Sort By</span>
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="h-4 w-4" />
               </button>
-              <div className="absolute top-full left-0 w-full bg-white border border-black border-t-0 hidden group-hover:block z-40">
+              <div className="absolute left-0 top-full z-40 hidden w-full border border-black border-t-0 bg-white group-hover:block">
                 {[
                   { label: 'Newest Arrivals', value: 'newest' },
                   { label: 'Price: Low to High', value: 'price_asc' },
                   { label: 'Price: High to Low', value: 'price_desc' },
                 ].map((option) => (
-                  <a
+                  <Link
                     key={option.value}
-                    href={`/shop?${new URLSearchParams({ ...searchParams, sort: option.value }).toString()}`}
+                    href={buildShopHref({ sort: option.value })}
                     className="block px-4 py-2 text-xs font-bold uppercase hover:bg-gray-100"
                   >
                     {option.label}
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Mobile Categories (Scrollable) */}
-        <div className="md:hidden flex overflow-x-auto gap-2 mb-8 pb-2 no-scrollbar">
-           {categories.map((cat) => (
-              <a
-                key={cat.value}
-                href={`/shop?${new URLSearchParams({ ...searchParams, category: cat.value }).toString()}`}
-                className={`flex-shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-wide border ${
-                  searchParams.category === cat.value || (!searchParams.category && cat.value === '')
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-black border-gray-200'
-                }`}
-              >
-                {cat.name}
-              </a>
-            ))}
+        <div className="mb-8 flex gap-2 overflow-x-auto pb-2 md:hidden no-scrollbar">
+          {categories.map((category) => (
+            <Link
+              key={category.value}
+              href={buildShopHref({ category: category.value })}
+              className={`flex-shrink-0 border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
+                searchParams.category === category.value || (!searchParams.category && category.value === '')
+                  ? 'border-black bg-black text-white'
+                  : 'border-gray-200 bg-white text-black'
+              }`}
+            >
+              {category.name}
+            </Link>
+          ))}
         </div>
 
-        {/* Products Grid */}
         {products && products.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-y-8 gap-x-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Filter className="w-12 h-12 text-gray-300 mb-4" />
+            <Filter className="mb-4 h-12 w-12 text-gray-300" />
             <h3 className="text-xl font-black uppercase tracking-widest text-gray-400">No products found</h3>
-            <p className="mt-2 text-gray-500 font-mono text-sm max-w-md">
+            <p className="mt-2 max-w-md text-sm font-mono text-gray-500">
               {error ? 'There was a problem loading products.' : "We couldn't find any items matching your filters."}
             </p>
-            <a href="/shop" className="mt-6 inline-block bg-black text-white px-8 py-3 text-xs font-bold uppercase tracking-widest">
+            <Link
+              href="/shop"
+              className="mt-6 inline-block bg-black px-8 py-3 text-xs font-bold uppercase tracking-widest text-white"
+            >
               Clear All Filters
-            </a>
+            </Link>
           </div>
         )}
       </div>
 
       <Footer />
     </div>
-  );
+  )
 }
