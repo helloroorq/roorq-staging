@@ -142,49 +142,6 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-gray-800">
-            <div className="flex flex-col items-center justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-4 mb-4">
-                <div className="flex items-center">
-                  <span className="text-[#00B67A] font-bold text-xl tracking-tight" style={{ fontFamily: 'Arial, Helvetica, sans-serif', letterSpacing: '-0.5px' }}>
-                    Trustpilot
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i: number) => (
-                    <svg key={i} width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-                      <path d="M10 0L12.2451 6.90983H19.5106L13.6327 11.1803L15.8779 18.0902L10 13.8197L4.12215 18.0902L6.36729 11.1803L0.489435 6.90983H7.75486L10 0Z" fill="#00B67A"/>
-                    </svg>
-                  ))}
-                </div>
-
-                <div className="flex flex-col items-start">
-                  <div className="text-white font-bold text-2xl leading-none">4.9</div>
-                  <div className="text-gray-400 text-[10px] font-normal uppercase tracking-wider mt-0.5">TrustScore</div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-                <span className="text-white font-semibold text-sm">Excellent</span>
-                <span className="text-gray-500 text-xs">&bull;</span>
-                <span className="text-gray-400 text-xs">Based on <span className="text-white font-semibold">1,247 reviews</span></span>
-              </div>
-
-              <a
-                href="https://www.trustpilot.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#00B67A] text-xs font-normal hover:underline flex items-center gap-1.5 transition-colors"
-              >
-                <span>See what our customers say</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-                  <path d="M1 11L11 1M11 1H1M11 1V11" stroke="#00B67A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </a>
-            </div>
-          </div>
-
           {isAdmin && (
             <div className="mt-6 pt-6 border-t border-gray-800 text-center">
               <Link
