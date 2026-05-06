@@ -1,0 +1,24 @@
+---
+description: Roorq monorepo layout and API conventions
+globs: **/*
+---
+
+# Roorq codebase
+
+## Monorepo (pnpm)
+
+- `apps/web` — Next.js customer app (`@roorq/web`).
+- `apps/karma-api` — Fastify service for karma ledger, internal awards, and redemption (`@roorq/karma-api`).
+- `packages/karma` — `KARMA_RULES` and shared karma types used by the API and web (`@roorq/karma`).
+- `packages/db` — **Authoritative** SQL in `migrations/`. Copy new migrations to `../../supabase/migrations` when applying via Supabase CLI.
+- `supabase/migrations` — Optional duplicate of `packages/db/migrations` for Supabase deploy pipelines.
+
+## API contracts
+
+- Karma HTTP API lives on the Fastify app (`@roorq/karma-api`), not in Next `route.ts`, except for thin proxies if required for same-origin.
+- Use `KARMA_INTERNAL_API_KEY` for `POST /api/karma/award` (server-to-server only).
+
+## Conventions
+
+- TypeScript, strict, Zod for request validation.
+- Database: append-only `karma_ledger`; `users.karma_balance` is a cache maintained by trigger.

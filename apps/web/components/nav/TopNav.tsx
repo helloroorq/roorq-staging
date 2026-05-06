@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronDown, Heart, LogOut, Menu, MessageSquare, Package, ShoppingBag, Sparkles, Store, User as UserIcon } from 'lucide-react'
@@ -199,6 +199,18 @@ export default function TopNav() {
   const megaMenuCloseTimerRef = useRef<number | null>(null)
   const megaMenuRegionRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+
+  const handleCloseMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen((current) => {
+      if (current) {
+        window.requestAnimationFrame(() => {
+          menuButtonRef.current?.focus()
+        })
+      }
+      return false
+    })
+  }, [])
 
   useEffect(() => {
     const syncWishlistCount = () => setWishlistCount(readWishlistCount())
@@ -228,10 +240,10 @@ export default function TopNav() {
   }, [isMobileSidebarOpen])
 
   useEffect(() => {
-    setIsMobileSidebarOpen(false)
+    handleCloseMobileSidebar()
     setIsUserMenuOpen(false)
     setOpenMegaMenuId(null)
-  }, [pathname, searchParams])
+  }, [handleCloseMobileSidebar, pathname, searchParams])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -295,7 +307,7 @@ export default function TopNav() {
   const handleLogout = async () => {
     try {
       await signOut()
-      setIsMobileSidebarOpen(false)
+      handleCloseMobileSidebar()
       setIsUserMenuOpen(false)
       router.replace('/')
       router.refresh()
@@ -308,125 +320,131 @@ export default function TopNav() {
     <>
       <header className="sticky top-0 z-40 border-b border-[#e5e5e5] bg-white">
         <div className="mx-auto max-w-[1840px]">
-          <div className="relative flex h-14 items-center px-4 md:h-16 md:gap-5 md:px-6 lg:px-8">
-            <div className="flex items-center md:hidden">
+          <div className="relative flex h-14 w-full items-center px-4 md:h-16 md:px-6 lg:px-8">
+            <div className="flex shrink-0 items-center md:mr-6">
               <button
+                ref={menuButtonRef}
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition hover:bg-neutral-100 hover:text-black"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition hover:bg-neutral-100 hover:text-black md:hidden"
                 aria-label="Open navigation menu"
+                aria-expanded={isMobileSidebarOpen}
+                aria-controls="mobile-navigation-drawer"
               >
                 <Menu className="h-5 w-5" />
               </button>
+
+              <Link href="/" aria-label="Roorq home" className="hidden shrink-0 md:block">
+                <RoorqLogo className="h-8 w-auto text-black" />
+              </Link>
             </div>
 
             <Link
               href="/"
               aria-label="Roorq home"
-              className="absolute left-1/2 -translate-x-1/2 md:static md:shrink-0 md:translate-x-0"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden"
             >
-              <RoorqLogo className="h-6 w-auto text-black md:h-8" />
+              <RoorqLogo className="h-6 w-auto text-black" />
             </Link>
 
-            <div className="hidden md:flex md:min-w-[22rem] md:flex-1">
-              <SearchBar className="w-full" />
-            </div>
+            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 md:ml-0 md:justify-center md:gap-6">
+              <div className="hidden min-w-0 max-w-2xl flex-1 md:block">
+                <SearchBar className="w-full" variant="desktop" />
+              </div>
 
-            <div className="ml-auto flex items-center gap-2 md:gap-3">
-              {user ? (
-                <div className="md:hidden">
-                  <MessagesNotificationBell />
-                </div>
-              ) : null}
-              <Link
-                href="/saved"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 transition hover:bg-neutral-100 hover:text-black md:hidden"
-                aria-label="Open saved items"
-              >
-                <Heart className="h-5 w-5" />
-                {wishlistCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                    {wishlistCount > 99 ? '99+' : wishlistCount}
-                  </span>
-                ) : null}
-              </Link>
-
-              <div className="hidden items-center gap-1 md:flex">
-                {user ? <MessagesNotificationBell /> : null}
-                {user ? <KarmaBalancePill balance={karmaSnapshot?.balance ?? null} /> : null}
-                <Link
-                  href="/saved"
-                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-neutral-700 transition hover:bg-neutral-100 hover:text-black"
-                  aria-label="Open saved items"
-                >
-                  <Heart className="h-5 w-5" />
-                  {wishlistCount > 0 ? (
-                    <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                      {wishlistCount > 99 ? '99+' : wishlistCount}
-                    </span>
-                  ) : null}
-                </Link>
+              <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
                 <Link
                   href="/cart"
-                  className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-neutral-700 transition hover:bg-neutral-100 hover:text-black"
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-700 transition hover:bg-neutral-100 hover:text-black md:h-11 md:w-11"
                   aria-label="Open cart"
                 >
-                  <ShoppingBag className="h-5 w-5" />
+                  <ShoppingBag className="h-5 w-5" strokeWidth={1.75} />
                   {cartCount > 0 ? (
-                    <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                    <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white md:right-1 md:top-1">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   ) : null}
                 </Link>
-                <Link
-                  href="/sell"
-                  className="inline-flex h-10 items-center rounded-md bg-black px-5 text-[15px] font-semibold text-white transition hover:bg-neutral-800"
-                >
-                  Sell now
-                </Link>
-              </div>
 
-              {!user ? (
-                <div className="hidden items-center gap-3 md:flex">
-                  <Link
-                    href={signupHref}
-                    className="inline-flex h-10 items-center rounded-md border border-black px-5 text-[15px] font-semibold text-black transition hover:bg-neutral-100"
-                  >
-                    Sign up
-                  </Link>
-                  <Link
-                    href={loginHref}
-                    className="inline-flex h-10 items-center px-1 text-[15px] font-semibold text-black transition hover:text-neutral-600"
-                  >
-                    Log in
-                  </Link>
-                </div>
-              ) : (
-                <div className="relative hidden md:block" ref={userMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsUserMenuOpen((currentValue) => !currentValue)}
-                    className="inline-flex h-10 items-center gap-2 rounded-full pl-1 pr-2 text-sm text-black transition hover:bg-neutral-100"
-                    aria-expanded={isUserMenuOpen}
-                    aria-haspopup="menu"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+                <Link
+                  href={user ? '/profile' : loginHref}
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-neutral-700 transition hover:bg-neutral-100 hover:text-black md:hidden"
+                  aria-label={user ? 'Open profile' : 'Log in'}
+                >
+                  {user ? (
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black text-[11px] font-semibold text-white">
                       {avatarLabel}
                     </span>
-                    <ChevronDown className={`h-4 w-4 text-neutral-500 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
+                  ) : (
+                    <UserIcon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                  )}
+                </Link>
 
-                  <DesktopUserMenu
-                    authLoading={authLoading}
-                    isAdmin={isAdmin}
-                    isOpen={isUserMenuOpen}
-                    isSeller={isSeller}
-                    onLogout={handleLogout}
-                    user={user}
-                  />
+                <div className="hidden items-center gap-1 md:flex">
+                  {user ? <MessagesNotificationBell /> : null}
+                  {user ? <KarmaBalancePill balance={karmaSnapshot?.balance ?? null} /> : null}
+                  {user ? (
+                    <Link
+                      href="/saved"
+                      className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-neutral-700 transition hover:bg-neutral-100 hover:text-black"
+                      aria-label="Open saved items"
+                    >
+                      <Heart className="h-5 w-5" />
+                      {wishlistCount > 0 ? (
+                        <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                          {wishlistCount > 99 ? '99+' : wishlistCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                  ) : null}
                 </div>
-              )}
+
+                {!user ? (
+                  <div className="hidden items-center gap-3 md:flex">
+                    <Link
+                      href={signupHref}
+                      className="inline-flex h-10 items-center rounded-md border border-black px-5 text-[15px] font-semibold text-black transition hover:bg-neutral-100"
+                    >
+                      Sign up
+                    </Link>
+                    <Link
+                      href={loginHref}
+                      className="inline-flex h-10 items-center px-1 text-[15px] font-semibold text-black transition hover:text-neutral-600"
+                    >
+                      Log in
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="relative hidden md:block" ref={userMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsUserMenuOpen((currentValue) => !currentValue)}
+                      className="inline-flex h-10 items-center gap-2 rounded-full pl-1 pr-2 text-sm text-black transition hover:bg-neutral-100"
+                      aria-expanded={isUserMenuOpen}
+                      aria-haspopup="menu"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+                        {avatarLabel}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-neutral-500 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <DesktopUserMenu
+                      authLoading={authLoading}
+                      isAdmin={isAdmin}
+                      isOpen={isUserMenuOpen}
+                      isSeller={isSeller}
+                      onLogout={handleLogout}
+                      user={user}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+
+          <div className="border-t border-[#e5e5e5] px-4 py-3 md:hidden">
+            <SearchBar className="w-full" variant="mobile" />
           </div>
 
           <div
@@ -441,7 +459,10 @@ export default function TopNav() {
               closeMegaMenu()
             }}
           >
-            <nav className="flex h-10 items-center gap-8 px-6 lg:px-8" aria-label="Category strip">
+            <nav
+              className="flex h-11 items-center gap-x-8 gap-y-2 border-t border-[#e5e5e5] px-6 text-[15px] lg:px-8"
+              aria-label="Category strip"
+            >
               {CATEGORY_MENUS.map((menu) => {
                 const isActive = isCategoryLinkActive(menu.href, pathname, searchParams)
                 const isOpen = openMegaMenuId === menu.id
@@ -463,14 +484,15 @@ export default function TopNav() {
                     }}
                     aria-controls={`mega-menu-panel-${menu.id}`}
                     aria-expanded={isOpen}
-                    className={`inline-flex h-full items-center gap-1 border-b-2 text-sm transition ${
-                      isActive
-                        ? 'border-black font-medium text-black'
-                        : 'border-transparent text-neutral-500 hover:border-black hover:text-black'
-                    } ${menu.accent === 'sale' ? 'text-rose-600 hover:text-rose-700' : ''}`}
+                    className={`inline-flex h-full items-center border-b-2 transition ${
+                      menu.accent === 'sale'
+                        ? `font-medium ${isActive ? 'border-rose-900 text-rose-900' : 'border-transparent text-rose-900 hover:border-rose-900/40'}`
+                        : isActive
+                          ? 'border-black font-medium text-black'
+                          : 'border-transparent text-black hover:border-black/30'
+                    }`}
                   >
                     {menu.label}
-                    <ChevronDown className={`h-3.5 w-3.5 transition ${isOpen ? 'rotate-180' : ''}`} />
                   </Link>
                 )
               })}
@@ -494,7 +516,7 @@ export default function TopNav() {
         categoryLinks={CATEGORY_LINKS}
         currentPath={pathname}
         loginHref={loginHref}
-        onClose={() => setIsMobileSidebarOpen(false)}
+        onClose={handleCloseMobileSidebar}
         onLogout={handleLogout}
         open={isMobileSidebarOpen}
         primaryLinks={PRIMARY_LINKS}
