@@ -1,16 +1,14 @@
 {
-  "name": "roorq-final",
+  "name": "roorq-staging",
   "private": true,
-  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820",
+  "packageManager": "pnpm@10",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "corepack pnpm --parallel --filter @roorq/web --filter @roorq/vendor-app dev",
-    "dev:web": "corepack pnpm --filter @roorq/web dev",
-    "dev:vendor": "corepack pnpm --filter @roorq/vendor-app dev",
-    "dev:karma": "corepack pnpm --filter @roorq/karma-api dev",
-    "test:karma": "corepack pnpm --filter @roorq/karma test",
-    "build": "corepack pnpm --filter @roorq/web build && corepack pnpm --filter @roorq/vendor-app build",
-    "lint": "corepack pnpm --filter @roorq/web lint && corepack pnpm --filter @roorq/vendor-app lint",
-    "typecheck": "corepack pnpm --filter @roorq/web exec tsc --noEmit",
-    "verify": "corepack pnpm typecheck && corepack pnpm --filter @roorq/web build && corepack pnpm test:karma"
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start"
   }
 }
