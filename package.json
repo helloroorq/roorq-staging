@@ -1,7 +1,7 @@
 {
   "name": "roorq-staging",
   "private": true,
-  "packageManager": "pnpm@10",
+  "packageManager": "pnpm@10.0.0",
   "workspaces": [
     "apps/*",
     "packages/*"
