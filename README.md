@@ -73,7 +73,7 @@ pnpm --filter @roorq/web exec tsc --noEmit
 pnpm build
 ```
 
-## License
+## License-roorq.com
 
 Proprietary - all rights reserved.
-// updated deployment
+updated deployment
