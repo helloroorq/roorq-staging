@@ -1,5 +1,6 @@
 {
+  "buildCommand": "cd ../.. && pnpm --filter @roorq/web build",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "framework": "nextjs",
   "regions": ["bom1"]
 }
-

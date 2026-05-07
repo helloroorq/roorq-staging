@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye as EyeBase, EyeOff as EyeOffBase } from "lucide-react";
+const Eye = EyeBase as unknown as React.FC<{ className?: string }>;
+const EyeOff = EyeOffBase as unknown as React.FC<{ className?: string }>;
 
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48" aria-hidden>
