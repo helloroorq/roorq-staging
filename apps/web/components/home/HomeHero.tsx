@@ -34,15 +34,24 @@ export default function HomeHero() {
             </div>
 
             {/* RIGHT — product image */}
-            <div className="relative min-h-[220px] overflow-hidden sm:min-h-[280px] md:min-h-[420px] lg:min-h-[520px]">
+            <div className="relative min-h-[260px] overflow-hidden sm:min-h-[320px] md:min-h-[460px] lg:min-h-[560px]">
               <Image
                 src="/hero-couple.png"
                 alt="ROORQ — couple on a chesterfield sofa wearing curated vintage streetwear"
                 fill
                 priority
-                quality={85}
-                sizes="(max-width: 768px) 50vw, 50vw"
-                className="object-cover object-center"
+                quality={90}
+                sizes="(max-width: 768px) 50vw, (max-width: 1280px) 50vw, 50vw"
+                className="object-cover object-[center_30%] sm:object-[center_35%] md:object-center"
+              />
+              {/* soft wash + left fade so the headline reads brighter */}
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/45 via-white/5 to-white/0"
+                aria-hidden="true"
+              />
+              <div
+                className="pointer-events-none absolute inset-0 bg-white/[0.06]"
+                aria-hidden="true"
               />
             </div>
           </div>
