@@ -1,17 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Filter, Search, SlidersHorizontal, X } from 'lucide-react'
-import Navbar from '@/components/Navbar'
+import { ChevronDown, X } from 'lucide-react'
 import Footer from '@/components/Footer'
-import ProductCard from '@/components/ProductCard'
+import ShopProductCard from '@/components/product/ShopProductCard'
 import StructuredData from '@/components/StructuredData'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
 import { breadcrumbSchema, collectionSchema } from '@/lib/seo/schema'
 import { escapeIlikeValue, sanitizeSearchQuery } from '@/lib/search/query'
 
-// Shop is highly variable (filters/search) but the underlying products list mutates infrequently;
-// 60s ISR makes filtered pages near-instant while letting new listings surface within a minute.
 export const revalidate = 60
 
 type MetadataSearchParams = Record<string, string | string[] | undefined>
@@ -34,7 +31,7 @@ type ShopSearchParams = {
 
 type ActiveFilter = {
   label: string
-  key: 'gender' | 'category' | 'size' | 'condition' | 'minPrice' | 'maxPrice' | 'stock' | 'q'
+  key: 'gender' | 'category' | 'brand' | 'size' | 'condition' | 'minPrice' | 'maxPrice' | 'stock' | 'q'
 }
 
 const getFirstParam = (value: string | string[] | undefined) =>
@@ -44,10 +41,7 @@ const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slic
 const PAGE_SIZE = 30
 
 const parsePositiveInt = (value: string | undefined, fallback: number) => {
-  if (!value) {
-    return fallback
-  }
-
+  if (!value) return fallback
   const numericValue = Number.parseInt(value, 10)
   return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallback
 }
@@ -58,9 +52,7 @@ const buildCanonicalQuery = (searchParams: MetadataSearchParams) => {
 
   canonicalKeys.forEach((key) => {
     const value = getFirstParam(searchParams[key])
-    if (value) {
-      canonicalParams.set(key, value)
-    }
+    if (value) canonicalParams.set(key, value)
   })
 
   const query = canonicalParams.toString()
@@ -91,6 +83,30 @@ export async function generateMetadata({
     },
   }
 }
+
+const POPULAR_BRANDS = [
+  'Nike',
+  'Adidas',
+  'BAPE',
+  'Ralph Lauren',
+  'Stüssy',
+  'Supreme',
+  'Champion',
+  'Carhartt',
+  'Tommy Hilfiger',
+  "Levi's",
+  'Polo',
+  'Nautica',
+  'Calvin Klein',
+  'Diesel',
+]
+
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'bestsellers', label: 'Most popular' },
+  { value: 'price_asc', label: 'Price: Low to high' },
+  { value: 'price_desc', label: 'Price: High to low' },
+]
 
 export default async function ShopPage({
   searchParams,
@@ -149,14 +165,10 @@ export default async function ShopPage({
   }
 
   const minPrice = parsePositiveInt(resolvedSearchParams.minPrice, 0)
-  if (minPrice > 0) {
-    query = query.gte('price', minPrice)
-  }
+  if (minPrice > 0) query = query.gte('price', minPrice)
 
   const maxPrice = parsePositiveInt(resolvedSearchParams.maxPrice, 0)
-  if (maxPrice > 0) {
-    query = query.lte('price', maxPrice)
-  }
+  if (maxPrice > 0) query = query.lte('price', maxPrice)
 
   if (resolvedSearchParams.stock === 'in_stock') {
     query = query.gt('stock_quantity', 0)
@@ -239,23 +251,7 @@ export default async function ShopPage({
     { name: 'Women', value: 'women' },
     { name: 'Kids', value: 'kids' },
   ]
-  const conditionOptions = [
-    { label: 'Any condition', value: '' },
-    { label: 'Like new', value: 'like_new' },
-    { label: 'Good', value: 'good' },
-    { label: 'Fair', value: 'fair' },
-    { label: 'Poor', value: 'poor' },
-  ]
-  const sizeOptions = [
-    { label: 'Any size', value: '' },
-    { label: 'XS', value: 'XS' },
-    { label: 'S', value: 'S' },
-    { label: 'M', value: 'M' },
-    { label: 'L', value: 'L' },
-    { label: 'XL', value: 'XL' },
-    { label: 'XXL', value: 'XXL' },
-    { label: 'Free size', value: 'Free' },
-  ]
+
   const totalResults = count ?? products?.length ?? 0
   const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE))
 
@@ -274,25 +270,49 @@ export default async function ShopPage({
 
   const activeFilters = [
     resolvedSearchParams.gender
-      ? { label: `Gender: ${capitalize(resolvedSearchParams.gender)}`, key: 'gender' as const }
+      ? { label: capitalize(resolvedSearchParams.gender), key: 'gender' as const }
       : null,
     resolvedSearchParams.category
-      ? { label: `Category: ${categoryLabel}`, key: 'category' as const }
+      ? { label: categoryLabel, key: 'category' as const }
+      : null,
+    resolvedSearchParams.brand
+      ? { label: resolvedSearchParams.brand, key: 'brand' as const }
       : null,
     resolvedSearchParams.size
-      ? { label: `Size: ${resolvedSearchParams.size}`, key: 'size' as const }
+      ? { label: `Size ${resolvedSearchParams.size}`, key: 'size' as const }
       : null,
     resolvedSearchParams.condition
-      ? { label: `Condition: ${resolvedSearchParams.condition.replace('_', ' ')}`, key: 'condition' as const }
+      ? { label: resolvedSearchParams.condition.replace('_', ' '), key: 'condition' as const }
       : null,
     resolvedSearchParams.minPrice ? { label: `Min ₹${resolvedSearchParams.minPrice}`, key: 'minPrice' as const } : null,
     resolvedSearchParams.maxPrice ? { label: `Max ₹${resolvedSearchParams.maxPrice}`, key: 'maxPrice' as const } : null,
     resolvedSearchParams.stock === 'in_stock' ? { label: 'In stock', key: 'stock' as const } : null,
-    searchTerm ? { label: `Search: ${searchTerm}`, key: 'q' as const } : null,
+    searchTerm ? { label: `“${searchTerm}”`, key: 'q' as const } : null,
   ].filter((filter): filter is ActiveFilter => filter !== null)
 
+  const headingLabel = (genderLabel ? `${genderLabel} ${categoryLabel}` : categoryLabel).toUpperCase()
+  const piecesLabel = `${totalResults.toLocaleString('en-IN')} ${totalResults === 1 ? 'PIECE' : 'PIECES'}`
+  const currentSortValue = resolvedSearchParams.sort ?? 'newest'
+  const currentSortLabel = SORT_OPTIONS.find((option) => option.value === currentSortValue)?.label ?? 'Newest'
+
+  const chipBase =
+    'inline-flex items-center gap-1 rounded-full border border-rq-line bg-rq-surface px-3.5 py-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-rq-ink hover:border-rq-ink transition cursor-pointer'
+  const chipActive =
+    'inline-flex items-center gap-1 rounded-full border border-rq-ink bg-rq-ink px-3.5 py-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-rq-brand-ink cursor-pointer'
+
+  const renderDropdown = (children: React.ReactNode) => (
+    <div className="absolute left-0 top-[calc(100%+8px)] z-30 max-h-80 w-64 overflow-y-auto rounded-2xl border border-rq-line bg-rq-surface p-2 shadow-[0_18px_40px_rgba(15,15,15,0.12)]">
+      {children}
+    </div>
+  )
+
+  const dropdownItem = (active: boolean) =>
+    `flex items-center justify-between rounded-xl px-3 py-2 text-[13px] ${
+      active ? 'bg-rq-ink text-rq-brand-ink' : 'text-rq-ink hover:bg-rq-bg'
+    }`
+
   return (
-    <div className="min-h-screen flex flex-col font-sans">
+    <div className="flex min-h-screen flex-col bg-rq-bg font-sans text-rq-ink">
       <StructuredData
         data={[
           collectionSchema({
@@ -306,229 +326,228 @@ export default async function ShopPage({
           ]),
         ]}
       />
-      <Navbar />
 
-      <div className="border-b border-gray-200 bg-gray-100 px-4 py-10 text-center md:py-12">
-        <h1 className="mb-4 text-4xl font-black uppercase tracking-tighter md:text-6xl">
-          {genderLabel ? `${genderLabel} ` : ''}
-          {categoryLabel}
+      <div className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+        <h1 className="text-[22px] font-black uppercase tracking-tight text-rq-ink md:text-[28px]">
+          {headingLabel} · {piecesLabel}
         </h1>
-        <p className="mx-auto max-w-3xl text-xs font-mono uppercase tracking-widest text-gray-500 md:text-sm">
-          {totalResults} Items found - verified vintage listings - filter by size, condition, and price in seconds
-        </p>
-      </div>
 
-      <div className="mx-auto flex-1 w-full max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <SlidersHorizontal className="h-4 w-4" />
-            Browse faster
-          </div>
-          <Link href="/saved" className="text-xs font-bold uppercase tracking-wide underline-offset-2 hover:underline">
-            View saved
-          </Link>
+        <div className="mt-1 flex items-center justify-between text-[12px] text-rq-ink-muted">
+          <span>{piecesLabel.toLowerCase()}</span>
+
+          <details className="no-marker relative">
+            <summary className="inline-flex cursor-pointer items-center gap-1 text-[12px] text-rq-ink-muted hover:text-rq-ink">
+              Sort: <span className="font-semibold text-rq-ink">{currentSortLabel}</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </summary>
+            <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-56 rounded-2xl border border-rq-line bg-rq-surface p-2 shadow-[0_18px_40px_rgba(15,15,15,0.12)]">
+              {SORT_OPTIONS.map((option) => (
+                <Link
+                  key={option.value}
+                  href={buildShopHref({ sort: option.value })}
+                  className={dropdownItem(currentSortValue === option.value)}
+                >
+                  {option.label}
+                </Link>
+              ))}
+            </div>
+          </details>
         </div>
 
-        <form action="/shop" className="mb-6 grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:grid-cols-2 lg:grid-cols-6">
-          <label className="relative block lg:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              name="q"
-              defaultValue={searchTerm ?? ''}
-              placeholder="Search by product, brand, or vibe"
-              className="h-11 w-full rounded-xl border border-gray-200 pl-10 pr-3 text-sm outline-none transition focus:border-black"
-            />
-          </label>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <details className="no-marker relative">
+            <summary className={resolvedSearchParams.gender ? chipActive : chipBase}>
+              Gender
+              <ChevronDown className="h-3.5 w-3.5" />
+            </summary>
+            {renderDropdown(
+              <>
+                {genders.map((gender) => (
+                  <Link
+                    key={gender.value || 'all-genders'}
+                    href={buildShopHref({ gender: gender.value })}
+                    className={dropdownItem((resolvedSearchParams.gender ?? '') === gender.value)}
+                  >
+                    {gender.name}
+                  </Link>
+                ))}
+              </>
+            )}
+          </details>
 
-          <select
-            name="gender"
-            defaultValue={resolvedSearchParams.gender ?? ''}
-            className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
-          >
-            {genders.map((gender) => (
-              <option key={gender.value} value={gender.value}>
-                {gender.name}
-              </option>
-            ))}
-          </select>
+          <details className="no-marker relative">
+            <summary className={resolvedSearchParams.category ? chipActive : chipBase}>
+              Category
+              <ChevronDown className="h-3.5 w-3.5" />
+            </summary>
+            {renderDropdown(
+              <>
+                {categories.map((category) => (
+                  <Link
+                    key={category.value || 'all-categories'}
+                    href={buildShopHref({ category: category.value })}
+                    className={dropdownItem((resolvedSearchParams.category ?? '') === category.value)}
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+              </>
+            )}
+          </details>
 
-          <select
-            name="size"
-            defaultValue={resolvedSearchParams.size ?? ''}
-            className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
-          >
-            {sizeOptions.map((sizeOption) => (
-              <option key={sizeOption.value} value={sizeOption.value}>
-                {sizeOption.label}
-              </option>
-            ))}
-          </select>
+          <details className="no-marker relative">
+            <summary className={resolvedSearchParams.brand ? chipActive : chipBase}>
+              Brand
+              <ChevronDown className="h-3.5 w-3.5" />
+            </summary>
+            {renderDropdown(
+              <>
+                <Link
+                  href={buildShopHref({ brand: '' })}
+                  className={dropdownItem(!resolvedSearchParams.brand)}
+                >
+                  All brands
+                </Link>
+                {POPULAR_BRANDS.map((brand) => (
+                  <Link
+                    key={brand}
+                    href={buildShopHref({ brand })}
+                    className={dropdownItem(resolvedSearchParams.brand === brand)}
+                  >
+                    {brand}
+                  </Link>
+                ))}
+              </>
+            )}
+          </details>
 
-          <select
-            name="condition"
-            defaultValue={resolvedSearchParams.condition ?? ''}
-            className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
-          >
-            {conditionOptions.map((conditionOption) => (
-              <option key={conditionOption.value} value={conditionOption.value}>
-                {conditionOption.label}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="submit"
-            className="h-11 rounded-xl bg-black px-4 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-neutral-800"
-          >
-            Apply filters
-          </button>
-
-          <div className="grid grid-cols-2 gap-3 md:col-span-2 lg:col-span-3">
-            <input
-              type="number"
-              name="minPrice"
-              min="0"
-              defaultValue={resolvedSearchParams.minPrice ?? ''}
-              placeholder="Min price"
-              className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
-            />
-            <input
-              type="number"
-              name="maxPrice"
-              min="0"
-              defaultValue={resolvedSearchParams.maxPrice ?? ''}
-              placeholder="Max price"
-              className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
-            />
-          </div>
-
-          <div className="md:col-span-2 lg:col-span-2">
-            <select
-              name="sort"
-              defaultValue={resolvedSearchParams.sort ?? 'newest'}
-              className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm outline-none transition focus:border-black"
+          <details className="no-marker relative">
+            <summary
+              className={resolvedSearchParams.minPrice || resolvedSearchParams.maxPrice ? chipActive : chipBase}
             >
-              <option value="newest">Newest arrivals</option>
-              <option value="bestsellers">Most popular</option>
-              <option value="price_asc">Price: Low to high</option>
-              <option value="price_desc">Price: High to low</option>
-            </select>
-          </div>
-
-          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 px-3 text-sm md:col-span-2 lg:col-span-1">
-            <input
-              type="checkbox"
-              name="stock"
-              value="in_stock"
-              defaultChecked={resolvedSearchParams.stock === 'in_stock'}
-              className="h-4 w-4 accent-black"
-            />
-            In stock only
-          </label>
-        </form>
-
-        <div className="sticky top-14 z-30 mb-6 flex flex-col gap-4 border-b border-gray-100 bg-white py-3 md:top-24">
-          <div className="flex flex-wrap gap-2">
-            {genders.map((gender) => (
-              <Link
-                key={gender.value || 'all-genders'}
-                href={buildShopHref({ gender: gender.value })}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wide border rounded-full ${
-                  (resolvedSearchParams.gender ?? '') === gender.value
-                    ? 'border-black bg-black text-white'
-                    : 'border-gray-200 bg-white text-black hover:border-black'
-                } transition-colors`}
+              Price
+              <ChevronDown className="h-3.5 w-3.5" />
+            </summary>
+            <form
+              action="/shop"
+              method="get"
+              className="absolute left-0 top-[calc(100%+8px)] z-30 w-72 rounded-2xl border border-rq-line bg-rq-surface p-3 shadow-[0_18px_40px_rgba(15,15,15,0.12)]"
+            >
+              {(['category', 'brand', 'q', 'sort', 'gender', 'size', 'condition', 'stock'] as const).map((key) => {
+                const value = resolvedSearchParams[key]
+                return value ? <input key={key} type="hidden" name={key} value={value} /> : null
+              })}
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-rq-ink-muted">
+                  Min ₹
+                  <input
+                    type="number"
+                    name="minPrice"
+                    min="0"
+                    inputMode="numeric"
+                    defaultValue={resolvedSearchParams.minPrice ?? ''}
+                    className="mt-1 h-10 w-full rounded-xl border border-rq-line bg-rq-surface px-3 text-sm text-rq-ink outline-none focus:border-rq-ink"
+                  />
+                </label>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-rq-ink-muted">
+                  Max ₹
+                  <input
+                    type="number"
+                    name="maxPrice"
+                    min="0"
+                    inputMode="numeric"
+                    defaultValue={resolvedSearchParams.maxPrice ?? ''}
+                    className="mt-1 h-10 w-full rounded-xl border border-rq-line bg-rq-surface px-3 text-sm text-rq-ink outline-none focus:border-rq-ink"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="mt-3 h-10 w-full rounded-xl bg-rq-brand text-[12px] font-bold uppercase tracking-[0.16em] text-rq-brand-ink"
               >
-                {gender.name}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {categories.map((category) => (
-              <Link
-                key={category.value}
-                href={buildShopHref({ category: category.value })}
-                className={`flex-shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-wide border rounded-full ${
-                  resolvedSearchParams.category === category.value || (!resolvedSearchParams.category && category.value === '')
-                    ? 'border-black bg-black text-white'
-                    : 'border-gray-200 bg-white text-black hover:border-black'
-                } transition-colors`}
-              >
-                {category.name}
-              </Link>
-            ))}
-          </div>
+                Apply
+              </button>
+            </form>
+          </details>
         </div>
 
         {activeFilters.length > 0 ? (
-          <div className="mb-6 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {activeFilters.map((filter) => (
               <Link
                 key={filter.key}
                 href={buildShopHref({ [filter.key]: '' })}
-                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs"
+                className="inline-flex items-center gap-1 rounded-full border border-rq-line bg-rq-surface px-3 py-1.5 text-[11px] text-rq-ink hover:border-rq-ink"
               >
                 {filter.label}
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
               </Link>
             ))}
-            <Link href="/shop" className="text-xs font-bold uppercase tracking-wide underline underline-offset-2">
+            <Link
+              href="/shop"
+              className="text-[11px] font-bold uppercase tracking-wide text-rq-ink-muted underline underline-offset-2 hover:text-rq-ink"
+            >
               Clear all
             </Link>
           </div>
         ) : null}
 
-        {products && products.length > 0 ? (
-          <>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-
-            <div className="mt-10 flex items-center justify-between border-t border-gray-100 pt-6">
-              <span className="text-xs font-mono uppercase tracking-wider text-gray-500">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Link
-                  href={buildShopHref({ page: currentPage > 1 ? String(currentPage - 1) : '1' })}
-                  aria-disabled={currentPage <= 1}
-                  className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
-                    currentPage <= 1 ? 'pointer-events-none border-gray-200 text-gray-300' : 'border-black text-black'
-                  }`}
-                >
-                  Previous
-                </Link>
-                <Link
-                  href={buildShopHref({ page: currentPage < totalPages ? String(currentPage + 1) : String(totalPages) })}
-                  aria-disabled={currentPage >= totalPages}
-                  className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
-                    currentPage >= totalPages ? 'pointer-events-none border-gray-200 text-gray-300' : 'border-black text-black'
-                  }`}
-                >
-                  Next
-                </Link>
+        <div className="mt-6">
+          {products && products.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {products.map((product) => (
+                  <ShopProductCard key={product.id} product={product} />
+                ))}
               </div>
+
+              <div className="mt-10 flex items-center justify-between border-t border-rq-line pt-6">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-rq-ink-muted">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Link
+                    href={buildShopHref({ page: currentPage > 1 ? String(currentPage - 1) : '1' })}
+                    aria-disabled={currentPage <= 1}
+                    className={`rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-wide ${
+                      currentPage <= 1
+                        ? 'pointer-events-none border-rq-line text-rq-ink-muted/50'
+                        : 'border-rq-ink text-rq-ink'
+                    }`}
+                  >
+                    Previous
+                  </Link>
+                  <Link
+                    href={buildShopHref({
+                      page: currentPage < totalPages ? String(currentPage + 1) : String(totalPages),
+                    })}
+                    aria-disabled={currentPage >= totalPages}
+                    className={`rounded-full border px-4 py-2 text-[11px] font-bold uppercase tracking-wide ${
+                      currentPage >= totalPages
+                        ? 'pointer-events-none border-rq-line text-rq-ink-muted/50'
+                        : 'border-rq-ink text-rq-ink'
+                    }`}
+                  >
+                    Next
+                  </Link>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <h3 className="text-xl font-black uppercase tracking-widest text-rq-ink-muted">No products found</h3>
+              <p className="mt-2 max-w-md text-sm text-rq-ink-muted">
+                {error ? 'There was a problem loading products.' : "We couldn't find any items matching your filters."}
+              </p>
+              <Link
+                href="/shop"
+                className="mt-6 inline-block rounded-full bg-rq-brand px-8 py-3 text-[11px] font-bold uppercase tracking-widest text-rq-brand-ink"
+              >
+                Clear All Filters
+              </Link>
             </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Filter className="mb-4 h-12 w-12 text-gray-300" />
-            <h3 className="text-xl font-black uppercase tracking-widest text-gray-400">No products found</h3>
-            <p className="mt-2 max-w-md text-sm font-mono text-gray-500">
-              {error ? 'There was a problem loading products.' : "We couldn't find any items matching your filters."}
-            </p>
-            <Link
-              href="/shop"
-              className="mt-6 inline-block bg-black px-8 py-3 text-xs font-bold uppercase tracking-widest text-white"
-            >
-              Clear All Filters
-            </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <Footer />

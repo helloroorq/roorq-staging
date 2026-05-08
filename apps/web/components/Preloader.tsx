@@ -77,11 +77,11 @@ export default function Preloader() {
       <div className="max-w-2xl px-8 text-center">
         <div className="mb-4 flex justify-center">
           <Image
-            src="/roorq-final7.png"
+            src="/roorq-logo.png"
             alt="Roorq"
-            width={500}
-            height={500}
-            className="h-100 w-100 object-contain drop-shadow-[0_12px_32px_rgba(0,0,0,0)]"
+            width={800}
+            height={241}
+            className="h-20 md:h-28 w-auto object-contain"
             priority
           />
         </div>

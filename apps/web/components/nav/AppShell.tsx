@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import BottomNav from '@/components/nav/BottomNav'
 import TopNav from '@/components/nav/TopNav'
+import LenisProvider from '@/components/LenisProvider'
 
 const shouldHideCustomerNav = (pathname: string) =>
   pathname.startsWith('/auth') || pathname.startsWith('/admin') || pathname.startsWith('/seller')
@@ -19,6 +20,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <LenisProvider />
       {shouldShowCustomerNav ? (
         <Suspense fallback={<TopNavFallback />}>
           <TopNav />

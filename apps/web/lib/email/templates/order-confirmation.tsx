@@ -7,10 +7,13 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Text,
 } from '@react-email/components'
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.roorq.com'
 
 export type OrderItem = {
   name: string
@@ -47,7 +50,13 @@ export default function OrderConfirmationEmail({
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Section style={styles.header}>
-            <Text style={styles.brand}>ROORQ</Text>
+            <Img
+              src={`${SITE_URL}/roorq-logo.png`}
+              alt="Roorq"
+              width="140"
+              height="42"
+              style={styles.brandLogo}
+            />
             <Text style={styles.headerTag}>ORDER CONFIRMED</Text>
           </Section>
 
@@ -124,11 +133,11 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
   },
-  brand: {
-    fontSize: '20px',
-    fontWeight: '900',
-    letterSpacing: '4px',
-    margin: 0,
+  brandLogo: {
+    display: 'block',
+    height: '32px',
+    width: 'auto',
+    filter: 'invert(1)',
   },
   headerTag: {
     fontSize: '12px',

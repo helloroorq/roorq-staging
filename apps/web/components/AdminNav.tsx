@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import RoorqLogo from '@/components/RoorqLogo';
 import {
   LayoutDashboard,
   Package,
@@ -43,8 +44,9 @@ export default function AdminNav() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/admin" className="font-bold text-xl tracking-tighter">
-                ROORQ ADMIN
+              <Link href="/admin" className="flex items-center gap-2 font-bold text-xl tracking-tighter">
+                <RoorqLogo className="h-7 w-auto" />
+                <span className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500">Admin</span>
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
