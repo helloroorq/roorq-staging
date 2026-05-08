@@ -36,11 +36,11 @@ export default function HomeHero() {
             {/* RIGHT — product image */}
             <div className="relative min-h-[220px] overflow-hidden sm:min-h-[280px] md:min-h-[420px] lg:min-h-[520px]">
               <Image
-                src="/hero-right.png"
-                alt="ROORQ vintage drop — hoodies and streetwear on hangers"
+                src="/hero-couple.png"
+                alt="ROORQ — couple on a chesterfield sofa wearing curated vintage streetwear"
                 fill
                 priority
-                quality={80}
+                quality={85}
                 sizes="(max-width: 768px) 50vw, 50vw"
                 className="object-cover object-center"
               />
