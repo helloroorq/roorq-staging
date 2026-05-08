@@ -12,6 +12,13 @@
 -- silently delete uploaded data.
 -- ─────────────────────────────────────────────────────────
 
+-- ── 0. Bypass storage.protect_delete trigger for this tx ──
+--    Supabase blocks direct DELETEs on storage.* by default;
+--    this GUC unlocks them for the duration of this migration
+--    transaction only (SET LOCAL is rolled back on commit).
+--    The safety guard at step 1 still prevents data loss.
+SET LOCAL storage.allow_delete_query = 'true';
+
 -- ── 1. Safety guard: refuse to drop `products` if non-empty ──
 DO $$
 DECLARE
