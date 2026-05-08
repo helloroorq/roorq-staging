@@ -321,7 +321,7 @@ export default function TopNav() {
       <header className="sticky top-0 z-40 border-b border-[#e5e5e5] bg-white">
         <div className="mx-auto max-w-[1840px]">
           <div className="relative flex h-14 w-full items-center px-4 md:h-16 md:px-6 lg:px-8">
-            <div className="flex shrink-0 items-center md:mr-6">
+            <div className="flex shrink-0 items-center gap-2 md:mr-6">
               <button
                 ref={menuButtonRef}
                 type="button"
@@ -334,18 +334,14 @@ export default function TopNav() {
                 <Menu className="h-5 w-5" />
               </button>
 
+              <Link href="/" aria-label="Roorq home" className="shrink-0 md:hidden">
+                <RoorqLogo className="h-7 w-auto" priority />
+              </Link>
+
               <Link href="/" aria-label="Roorq home" className="hidden shrink-0 md:block">
-                <RoorqLogo className="h-8 w-auto text-black" />
+                <RoorqLogo className="h-8 w-auto" priority />
               </Link>
             </div>
-
-            <Link
-              href="/"
-              aria-label="Roorq home"
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden"
-            >
-              <RoorqLogo className="h-6 w-auto text-black" />
-            </Link>
 
             <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 md:ml-0 md:justify-center md:gap-6">
               <div className="hidden min-w-0 max-w-2xl flex-1 md:block">

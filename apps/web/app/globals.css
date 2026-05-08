@@ -26,6 +26,33 @@
   --ring: 240 5.9% 10%;
   --radius: 0.625rem;
   --radius-md: calc(var(--radius) - 2px);
+
+  /* ROORQ design tokens — RGB triplets (space-separated) for Tailwind rgb(var(--x) / <alpha-value>) */
+  --rq-bg: 247 244 238;
+  --rq-surface: 255 255 255;
+  --rq-ink: 23 23 23;
+  --rq-ink-muted: 115 115 115;
+  --rq-brand: 139 26 26;
+  --rq-brand-ink: 255 255 255;
+  --rq-accent: 236 224 208;
+  --rq-success: 22 163 74;
+  --rq-warn: 217 119 6;
+  --rq-danger: 220 38 38;
+  --rq-line: 229 229 229;
+}
+
+:root[data-theme="dark"] {
+  --rq-bg: 17 17 17;
+  --rq-surface: 24 24 27;
+  --rq-ink: 250 250 250;
+  --rq-ink-muted: 161 161 170;
+  --rq-brand: 220 38 38;
+  --rq-brand-ink: 255 255 255;
+  --rq-accent: 63 49 35;
+  --rq-success: 34 197 94;
+  --rq-warn: 245 158 11;
+  --rq-danger: 239 68 68;
+  --rq-line: 39 39 42;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,7 +78,7 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .animate-marquee {
     animation: marquee 25s linear infinite;
   }
@@ -62,6 +89,13 @@ body {
 
   .animate-wishlist-pop-out {
     animation: wishlist-pop-out 150ms ease-out;
+  }
+
+  .no-marker {
+    list-style: none;
+  }
+  .no-marker::-webkit-details-marker {
+    display: none;
   }
 }
 
