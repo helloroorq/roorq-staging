@@ -102,7 +102,16 @@ export default function Drop001Client({ dropAtUtc, initialCount, referrerCode }:
 
   const shareText = useMemo(
     () =>
-      `ROORQ Drop 001 lands May 13. ~30 hand-picked pieces, IITR-first. I locked my slot — here's yours: ${shareUrl}`,
+      [
+        'ROORQ Drop 001 · IIT Roorkee',
+        'Tue, May 13 · 8 PM IST',
+        '',
+        '~30 hand-picked pieces. IITR rolls get a 30-min head start.',
+        '',
+        "I locked my slot. Two friends through my link bumps me up — and the link's yours forever:",
+        '',
+        shareUrl,
+      ].join('\n'),
     [shareUrl]
   )
 

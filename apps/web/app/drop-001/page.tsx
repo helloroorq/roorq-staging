@@ -4,10 +4,11 @@ import { buildMetadata } from '@/lib/seo/metadata'
 import Drop001Client from './Drop001Client'
 
 export const metadata = buildMetadata({
-  title: 'Drop 001 — IIT Roorkee',
+  title: 'Drop 001 — IIT Roorkee · May 13, 8 PM IST',
   description:
-    'ROORQ Drop 001 lands May 13. Limited pieces, story-scored, IITR-first. Join the early access list and bring two friends to unlock priority access.',
+    '~30 hand-picked vintage pieces. IITR rolls get a 30-min head start. Lock your slot — bring two friends and you move up the queue.',
   path: '/drop-001',
+  image: '/og/drop-001',
   keywords: ['roorq', 'iit roorkee', 'drop 001', 'thrift', 'vintage', 'campus drop'],
 })
 
